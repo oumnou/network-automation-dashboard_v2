@@ -1,0 +1,32 @@
+[
+  {
+    "hostname": "core-sw-01",
+    "ip": "192.168.1.10",
+    "role": "core",
+    "status": "healthy",
+    "cpu": 22,
+    "memory": 48,
+    "temperature": 36,
+    "interfaces": 48
+  },
+  {
+    "hostname": "dist-sw-01",
+    "ip": "192.168.1.20",
+    "role": "distribution",
+    "status": "healthy",
+    "cpu": 18,
+    "memory": 40,
+    "temperature": 35,
+    "interfaces": 24
+  },
+  {
+    "hostname": "access-sw-01",
+    "ip": "192.168.1.30",
+    "role": "access",
+    "status": "warning",
+    "cpu": 35,
+    "memory": 60,
+    "temperature": 44,
+    "interfaces": 24
+  }
+]

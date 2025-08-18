@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cisco Network Management Dashboard</title>
+  <!-- vis-network CDN -->
+  <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="header">
+    <h1>Cisco Network Management Dashboard</h1>
+    <p>Topology Visualization • Health Monitoring • Configuration Management</p>
+  </div>
+
+  <div class="dashboard">
+    <!-- Main Panel -->
+    <div class="main-panel">
+      <!-- Network Topology Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🌐 Network Topology</h3>
+          <div class="control-panel">
+            <button class="btn" id="scanBtn">🔍 Scan Network</button>
+            <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+            <button class="btn btn-secondary" id="exportBtn">📤 Export</button>
+          </div>
+        </div>
+        <div class="card-content">
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-dot core"></div>
+              <span>Core Switches</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot distribution"></div>
+              <span>Distribution Switches</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot access"></div>
+              <span>Access Switches</span>
+            </div>
+          </div>
+          <div id="network-topology" class="network-topology"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Switch Details Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🔧 Switch Details</h3>
+        </div>
+        <div class="card-content">
+          <div class="switch-details" id="switchDetails">
+            <div class="switch-name" id="switchName">Select a switch</div>
+            <div class="switch-info" id="switchInfo">
+              <div class="info-row">
+                <span class="info-label">Role:</span>
+                <span class="info-value" id="switchRole">—</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">IP:</span>
+                <span class="info-value" id="switchIP">—</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Status:</span>
+                <div class="status-indicator status-healthy" id="switchStatus">
+                  <div class="status-dot"></div>
+                  <span>—</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="health-metrics" id="healthMetrics">
+              <div class="metric">
+                <div class="metric-value" id="cpuValue">—</div>
+                <div class="metric-label">CPU %</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="memoryValue">—</div>
+                <div class="metric-label">Memory %</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="tempValue">—</div>
+                <div class="metric-label">Temp °C</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="interfacesValue">—</div>
+                <div class="metric-label">Interfaces</div>
+              </div>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 8px;">
+              <button class="btn btn-success" id="backupBtn">💾 Backup</button>
+              <button class="btn" id="configBtn">⚙️ Configure</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Update Switch Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">➕ Add/Update Switch</h3>
+        </div>
+        <div class="card-content">
+          <form id="addSwitchForm">
+            <div class="form-group">
+              <label class="form-label">Hostname</label>
+              <input type="text" class="form-input" id="newHostname" placeholder="e.g., core-sw-01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">IP Address</label>
+              <input type="text" class="form-input" id="newIP" placeholder="e.g., 192.168.1.10" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select class="form-select" id="newRole">
+                <option value="core">Core</option>
+                <option value="distribution">Distribution</option>
+                <option value="access">Access</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="submit" class="btn">➕ Add/Update</button>
+              <button type="button" class="btn btn-danger" id="markVulnBtn">🚨 Mark Vulnerable</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Network Scanner Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🔍 Network Scanner</h3>
+        </div>
+        <div class="card-content">
+          <div class="form-group">
+            <label class="form-label">Network Range</label>
+            <input type="text" class="form-input" id="networkRange" placeholder="192.168.1.0/24" value="192.168.1.0/24">
+          </div>
+          <button class="btn" id="scanNetworkBtn">🔍 Scan for Switches</button>
+          <div class="scan-results" id="scanResults" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Activity Log Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">📋 Activity Log</h3>
+        </div>
+        <div class="card-content">
+          <div class="log-panel" id="activityLog">
+            [INIT] Dashboard loaded successfully<br>
+            [INFO] Ready to scan network and manage switches<br>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
