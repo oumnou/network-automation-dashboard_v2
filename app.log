@@ -1,0 +1,4 @@
+[2025-08-19 13:24:33 UTC] [SCAN] range=192.168.116.0/24 found=1
+[2025-08-19 13:29:31 UTC] [SWITCH] Added new switch 192.168.116.135: ovs-no-bridges
+[2025-08-19 13:30:10 UTC] [SCAN] range=192.168.116.0/24 found=1
+[2025-08-19 16:00:38 UTC] [SCAN] range=192.168.116.0/24 found=1
