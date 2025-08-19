@@ -1,61 +1,60 @@
-from typing import List, Tuple, Optional
-import socket, ipaddress, subprocess, shutil
-from config import DEFAULT_SCAN_RANGE, DEFAULT_SCAN_PORTS
+# new-network-automation-dashboard/services/net_scan.py
+from typing import Optional, List
+import nmap
+import shutil
+import socket, ipaddress
+from config import DEFAULT_SCAN_RANGE
+from services.ssh_utils import detect_bridge
 
-def _scan_with_nmap(network: str, ports: list) -> list:
-    import nmap  # python-nmap
+def _scan_with_nmap(network: str) -> List[dict]:
     nm = nmap.PortScanner()
-    port_str = ",".join(str(p) for p in ports)
-    # Only list hosts with at least one open port
-    nm.scan(hosts=network, arguments=f"-p {port_str} --open")
+    nm.scan(hosts=network, arguments="-p 22 --open")
     results = []
     for host in nm.all_hosts():
-        host_state = nm[host].state()
-        open_ports = []
-        for proto in nm[host].all_protocols():
-            for p, pdata in nm[host][proto].items():
-                if pdata.get("state") == "open":
-                    open_ports.append(int(p))
-        results.append({
-            "ip": host,
-            "state": host_state,
-            "open_ports": sorted(open_ports),
-        })
+        state = nm[host].state()
+        if "tcp" in nm[host] and 22 in nm[host]["tcp"] and nm[host]["tcp"][22]["state"] == "open":
+            results.append({
+                "ip": host,
+                "status": state,
+                "open_ports": [22],
+                "bridge": detect_bridge(host)
+            })
     return results
 
-def _scan_with_sockets(network: str, ports: list) -> list:
-    # Simple, slower fallback: TCP connect scan for first 256 hosts of subnet
+def _scan_with_sockets(network: str) -> List[dict]:
     net = ipaddress.ip_network(network, strict=False)
-    hosts = list(net.hosts())[:256]
-    out = []
+    hosts = list(net.hosts())[:256]  # limit to first 256 hosts
+    results = []
     for h in hosts:
         ip = str(h)
-        open_ports = []
-        for port in ports:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.2)
-            try:
-                s.connect((ip, port))
-                open_ports.append(port)
-            except Exception:
-                pass
-            finally:
-                s.close()
-        if open_ports:
-            out.append({"ip": ip, "state": "up", "open_ports": open_ports})
-    return out
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.3)
+        try:
+            s.connect((ip, 22))
+            results.append({
+                "ip": ip,
+                "status": "up",
+                "open_ports": [22],
+                "bridge": detect_bridge(ip)
+            })
+        except Exception:
+            pass
+        finally:
+            s.close()
+    return results
 
-def scan_hosts(network_range: Optional[str]=None, ports: Optional[list]=None) -> Tuple[list, str]:
+def scan_hosts(network_range: Optional[str] = None) -> List[dict]:
+    """
+    Scan a network range for OVS 'switches' reachable via SSH.
+    Returns a list of {ip, status, open_ports, bridge}.
+    """
     network = network_range or DEFAULT_SCAN_RANGE
-    ports = ports or DEFAULT_SCAN_PORTS
-    # Prefer python-nmap if nmap engine is available on system
-    try:
-        # Quick check if nmap binary exists; python-nmap still needs it
-        if shutil.which("nmap"):
-            results = _scan_with_nmap(network, ports)
-            return results, "nmap"
-    except Exception:
-        pass
-    # Fallback
-    results = _scan_with_sockets(network, ports)
-    return results, "socket"
+
+    if shutil.which("nmap"):
+        try:
+            return _scan_with_nmap(network)
+        except Exception:
+            pass
+
+    # fallback to socket scan
+    return _scan_with_sockets(network)

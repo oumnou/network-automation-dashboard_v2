@@ -1,183 +1,184 @@
-// Basic state
-let switches = [];
-let selectedNodeId = null;
-let network = null;
-
-// DOM helpers
-const $ = (id) => document.getElementById(id);
-const logPanel = () => $("activityLog");
-function log(msg) {
-  const el = logPanel();
-  const time = new Date().toLocaleTimeString();
-  el.innerHTML += `[${time}] ${msg}<br>`;
-  el.scrollTop = el.scrollHeight;
+// ===============================
+// Utility Functions
+// ===============================
+function logActivity(msg) {
+  const logPanel = document.getElementById("activityLog");
+  logPanel.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+  logPanel.scrollTop = logPanel.scrollHeight;
 }
 
-// Build / refresh vis-network
-function renderNetwork() {
-  const nodes = switches.map((s, idx) => ({
-    id: s.ip,
-    label: `${s.hostname}\n${s.ip}`,
-    group: s.role || "access"
-  }));
-  const edges = []; // Simple for now
-  const container = $("network-topology");
-  const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
-  const options = {
-    autoResize: true,
-    height: "480px",
-    nodes: {
-      shape: "dot",
-      size: 18,
-      font: { color: "#e5e7eb" }
-    },
-    groups: {
-      core: { color: "#60a5fa" },
-      distribution: { color: "#a78bfa" },
-      access: { color: "#34d399" }
-    },
-    physics: { stabilization: true }
-  };
-  network = new vis.Network(container, data, options);
-  network.on("selectNode", (params) => {
-    const nodeId = params.nodes[0];
-    selectedNodeId = nodeId;
-    const sw = switches.find((s) => s.ip === nodeId);
-    if (sw) {
-      updateSidebar(sw);
-    }
-  });
+async function fetchJSON(url, opts = {}) {
+  const res = await fetch(url, opts);
+  return res.json();
 }
 
-// Update switch info panel
-function updateSidebar(sw) {
-  $("switchName").innerText = sw.hostname || "Unknown";
-  $("switchRole").innerText = sw.role || "—";
-  $("switchIP").innerText = sw.ip || "—";
-  const statusSpan = $("switchStatus").querySelector("span");
-  statusSpan.innerText = sw.status || "—";
-  // Fake health metrics for now (could be polled via API later)
-  $("cpuValue").innerText = sw.cpu ?? Math.floor(10 + Math.random()*50);
-  $("memoryValue").innerText = sw.memory ?? Math.floor(20 + Math.random()*60);
-  $("tempValue").innerText = sw.temperature ?? Math.floor(30 + Math.random()*20);
-  $("interfacesValue").innerText = sw.interfaces ?? 24;
-}
+// ===============================
+// Network Scanner
+// ===============================
+document.getElementById("scanNetworkBtn").addEventListener("click", async () => {
+  const range = document.getElementById("networkRange").value;
+  logActivity(`🔍 Scanning ${range}...`);
 
-// Load switches from backend
-async function loadSwitches() {
-  const res = await fetch("/api/switch/");
-  const data = await res.json();
-  switches = data;
-  renderNetwork();
-}
-
-// Add/Update switch handler
-$("addSwitchForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const payload = {
-    hostname: $("newHostname").value.trim(),
-    ip: $("newIP").value.trim(),
-    role: $("newRole").value
-  };
-  const res = await fetch("/api/switch/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  if (res.ok) {
-    log(`Switch saved: ${payload.hostname} (${payload.ip})`);
-    await loadSwitches();
-    e.target.reset();
-  } else {
-    const err = await res.json();
-    log(`Error saving switch: ${err.error || res.statusText}`);
-  }
-});
-
-// Scan network (sidebar card)
-$("scanNetworkBtn").addEventListener("click", async () => {
-  const range = $("networkRange").value.trim();
-  log(`Scanning network ${range}...`);
-  const res = await fetch("/api/scan/", {
+const data = await fetchJSON("/api/scan/", { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ network: range })
   });
-  const data = await res.json();
-  $("scanResults").style.display = "block";
-  $("scanResults").innerHTML = data.results.map(r => `<div>🔌 ${r.ip} (open: ${r.open_ports.join(",")})</div>`).join("");
-  log(`Scan finished with engine: ${data.engine}. Found ${data.results.length} hosts with open ports.`);
-});
 
-// Main panel buttons
-$("scanBtn").addEventListener("click", () => $("scanNetworkBtn").click());
-$("refreshBtn").addEventListener("click", () => loadSwitches());
-$("exportBtn").addEventListener("click", async () => {
-  const blob = new Blob([JSON.stringify(switches, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "switches.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  log("Exported current switches.json");
-});
+  const scanResultsDiv = document.getElementById("scanResults");
+  scanResultsDiv.innerHTML = "";
+  scanResultsDiv.style.display = "block";
 
-// Backup button
-$("backupBtn").addEventListener("click", async () => {
-  if (!selectedNodeId) {
-    alert("Select a switch node first.");
+  if (!data.results || data.results.length === 0) {
+    scanResultsDiv.innerHTML = "<p>No switches found.</p>";
+    logActivity("⚠️ No switches detected");
     return;
   }
-  const ip = selectedNodeId;
-  const username = prompt("Username for SSH:");
-  if (!username) return;
-  const password = prompt("Password for SSH:");
-  if (!password) return;
-  const enable_password = prompt("Enable password (optional):") || undefined;
-  log(`Starting backup for ${ip}...`);
-  const res = await fetch("/api/backup/run", {
+
+  data.results.forEach(sw => {
+    const item = document.createElement("div");
+    item.className = "scan-result-item";
+    item.innerHTML = `<b>${sw.bridge}</b> (${sw.ip}) - Status: ${sw.status}`;
+    item.style.cursor = "pointer";
+
+    item.onclick = () => {
+      document.getElementById("newHostname").value = sw.bridge;
+      document.getElementById("newIP").value = sw.ip;
+
+      if (sw.bridge.includes("core")) {
+        document.getElementById("newRole").value = "core";
+      } else if (sw.bridge.includes("dist")) {
+        document.getElementById("newRole").value = "distribution";
+      } else {
+        document.getElementById("newRole").value = "access";
+      }
+
+      logActivity(`➡️ Auto-filled form with ${sw.bridge} (${sw.ip})`);
+    };
+
+    scanResultsDiv.appendChild(item);
+  });
+
+  logActivity(`✅ Scan complete: ${data.results.length} switches detected`);
+});
+
+// ===============================
+// Add / Update Switch
+// ===============================
+document.getElementById("addSwitchForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const hostname = document.getElementById("newHostname").value;
+  const ip = document.getElementById("newIP").value;
+  const role = document.getElementById("newRole").value;
+
+const data = await fetchJSON("/api/switch/", { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ip, username, password, enable_password })
+    body: JSON.stringify({ hostname, ip, role })
   });
-  const data = await res.json();
+
   if (data.ok) {
-    log(`Backup OK for ${ip}. Saved ${data.meta.bytes} bytes.`);
+    logActivity(`✅ Switch saved: ${hostname} (${ip}, ${role})`);
+    loadTopology();
   } else {
-    log(`Backup FAILED for ${ip}: ${data.error}`);
+    logActivity(`❌ Failed to save switch: ${data.error}`);
   }
 });
 
-// Configure button (placeholder)
-$("configBtn").addEventListener("click", () => {
-  if (!selectedNodeId) return alert("Select a switch node first.");
-  alert("Configuration UI coming soon 🚧");
+// ===============================
+// Backup Switch Config
+// ===============================
+document.getElementById("backupBtn").addEventListener("click", async () => {
+  const ip = document.getElementById("switchIP").textContent;
+  if (!ip || ip === "—") {
+    logActivity("⚠️ No switch selected for backup");
+    return;
+  }
+
+  const username = prompt("Enter SSH username:");
+  const password = prompt("Enter SSH password:");
+
+  if (!username || !password) {
+    logActivity("⚠️ Backup cancelled (missing credentials)");
+    return;
+  }
+
+  logActivity(`💾 Starting backup for ${ip}...`);
+
+const data = await fetchJSON("/api/backup/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ip,
+      username,
+      password,
+      device_type: "ovs"
+    })
+  });
+
+  if (data.ok) {
+    logActivity(`✅ Backup complete: ${data.meta.bytes} bytes saved`);
+  } else {
+    logActivity(`❌ Backup failed: ${data.error}`);
+  }
 });
 
-// Mark vulnerable demo
-$("markVulnBtn").addEventListener("click", () => {
-  if (!selectedNodeId) return alert("Select a switch node first.");
-  log(`Marked ${selectedNodeId} as vulnerable (demo).`);
-});
+// ===============================
+// Refresh / Topology Visualization
+// ===============================
+async function loadTopology() {
+const data = await fetchJSON("/api/switch/");
+  const container = document.getElementById("network-topology");
 
-// Periodically pull server logs (non-blocking)
-async function refreshLogs() {
-  try {
-    const res = await fetch("/api/logs/tail?n=50");
-    const data = await res.json();
-    const panel = $("activityLog");
-    panel.innerHTML = data.lines.map(ln => ln.replaceAll("&", "&amp;").replaceAll("<", "&lt;")).join("<br>");
-    panel.scrollTop = panel.scrollHeight;
-  } catch (e) {}
+  const nodes = data.map(sw => ({
+    id: sw.ip,
+    label: sw.hostname,
+    shape: "dot",
+    size: 25,
+    color:
+      sw.role === "core"
+        ? "#ff6666"
+        : sw.role === "distribution"
+        ? "#66b3ff"
+        : "#99ff99"
+  }));
+
+  const edges = [];
+  // simple chain topology (core -> dist -> access)
+  const core = nodes.find(n => n.label.includes("core"));
+  const dists = nodes.filter(n => n.label.includes("dist"));
+  const access = nodes.filter(n => n.label.includes("access"));
+
+  dists.forEach(d => edges.push({ from: core.id, to: d.id }));
+  access.forEach((a, i) => edges.push({ from: dists[i % dists.length].id, to: a.id }));
+
+  const network = new vis.Network(container, { nodes, edges }, {
+    physics: { enabled: true },
+    edges: { arrows: { to: { enabled: false } } }
+  });
+
+  network.on("click", (params) => {
+    if (params.nodes.length > 0) {
+      const ip = params.nodes[0];
+      showSwitchDetails(ip);
+    }
+  });
 }
-setInterval(refreshLogs, 5000);
 
+async function showSwitchDetails(ip) {
+const sw = await fetchJSON(`/api/switch/${ip}`);
+  document.getElementById("switchName").textContent = sw.hostname || ip;
+  document.getElementById("switchIP").textContent = sw.ip || "—";
+  document.getElementById("switchRole").textContent = sw.role || "—";
+
+  const statusDiv = document.getElementById("switchStatus");
+  statusDiv.querySelector("span").textContent = sw.status || "unknown";
+
+  logActivity(`📋 Viewing details for ${sw.hostname} (${ip})`);
+}
+
+// ===============================
 // Init
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadSwitches();
-  log("Dashboard ready.");
-  refreshLogs();
-});
+// ===============================
+document.getElementById("refreshBtn").addEventListener("click", loadTopology);
+window.onload = loadTopology;

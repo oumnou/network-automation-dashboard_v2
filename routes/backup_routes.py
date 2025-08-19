@@ -1,3 +1,5 @@
+# new-network-automation-dashboard/routes/backup_routes.py
+
 from flask import Blueprint, request, jsonify
 from services.ssh_utils import fetch_running_config
 from services.action_logger import action_logger
@@ -14,7 +16,7 @@ def run_backup():
     username = payload.get("username")
     password = payload.get("password")
     secret = payload.get("enable_password") or payload.get("secret")
-    device_type = payload.get("device_type", "cisco_ios")
+    device_type = payload.get("device_type", "ovs")   # 👈 default = ovs
     dry_run = bool(payload.get("dry_run", False))
 
     if not ip or not username or not password:
@@ -26,17 +28,19 @@ def run_backup():
 
     if dry_run:
         # Simulate output
-        output = f"! DRY RUN backup for {ip} at {ts}\nhostname TEST\n! end"
+        output = f"! DRY RUN OVS backup for {ip} at {ts}\nbridge {ip}\n! end"
         success = True
         engine = "dry_run"
     else:
-        success, output, engine = fetch_running_config(ip, username, password, secret=secret, device_type=device_type)
+        success, output, engine = fetch_running_config(
+            ip, username, password, secret=secret, device_type=device_type
+        )
 
     if not success:
         action_logger(f"[BACKUP][FAIL] ip={ip} engine={engine}")
         return jsonify({"ok": False, "engine": engine, "error": output}), 500
 
-    cfg_path = os.path.join(backup_base, "running-config.cfg")
+    cfg_path = os.path.join(backup_base, "running-config.txt")
     with open(cfg_path, "w", encoding="utf-8") as f:
         f.write(output)
 
