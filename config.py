@@ -1,22 +1,20 @@
+# config.py
 import os
-from pathlib import Path
 
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-BACKUP_DIR = DATA_DIR / "backups"
-SWITCH_DB = DATA_DIR / "switches.json"
-LOG_FILE = DATA_DIR / "activity.log"
-
-# Ensure directories exist
-BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-# App settings
+# Flask configuration
 DEBUG = True
 HOST = "0.0.0.0"
 PORT = 5000
 
-# Default scan settings
-DEFAULT_SCAN_RANGE = "192.168.1.0/24"
-DEFAULT_SCAN_PORTS = [22]  # SSH
+# File paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "app.log")
+BACKUP_DIR = os.path.join(BASE_DIR, "backups")
+SWITCH_DB = os.path.join(BASE_DIR, "switches.json")
+
+# Network scanning
+DEFAULT_SCAN_RANGE = "192.168.116.0/24"  # Updated to match your network
+
+# Create directories if they don't exist
+os.makedirs(BACKUP_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(SWITCH_DB), exist_ok=True)
