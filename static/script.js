@@ -60,14 +60,45 @@ document.getElementById("scanNetworkBtn").addEventListener("click", async () => 
       const item = document.createElement("div");
       item.className = "scan-result-item";
       
-      const bridgeDisplay = device.bridge === "unknown" ? "Unknown Device" : device.bridge;
+      // Better bridge display parsing
+      let bridgeDisplay = device.bridge;
+      let deviceIcon = "🔧"; // Default icon
+      
+      if (device.bridge.includes("OVS-Core")) {
+        deviceIcon = "🏛️";
+        bridgeDisplay = device.bridge;
+      } else if (device.bridge.includes("OVS-Distribution")) {
+        deviceIcon = "🏢";
+        bridgeDisplay = device.bridge;
+      } else if (device.bridge.includes("OVS-Access")) {
+        deviceIcon = "🏠";
+        bridgeDisplay = device.bridge;
+      } else if (device.bridge.includes("OVS-Switch")) {
+        deviceIcon = "🌐";
+        bridgeDisplay = device.bridge;
+      } else if (device.bridge.startsWith("linux-")) {
+        deviceIcon = "🐧";
+        bridgeDisplay = device.bridge.replace("linux-", "Linux: ");
+      } else if (device.bridge === "ovs-no-bridges") {
+        deviceIcon = "⚠️";
+        bridgeDisplay = "OVS (No Bridges)";
+      } else if (device.bridge === "unknown") {
+        deviceIcon = "❓";
+        bridgeDisplay = "Unknown Device";
+      }
+      
       const portsDisplay = device.open_ports ? device.open_ports.join(", ") : "N/A";
       
       item.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <b>${bridgeDisplay}</b> (${device.ip})<br>
-            <small>Status: ${device.status} | Ports: ${portsDisplay}</small>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span style="font-size: 16px;">${deviceIcon}</span>
+              <b>${bridgeDisplay}</b>
+            </div>
+            <div style="color: #9ca3af; font-size: 13px;">
+              IP: ${device.ip} | Status: ${device.status} | Ports: ${portsDisplay}
+            </div>
           </div>
           <button class="btn btn-sm" onclick="autoFillDevice('${device.ip}', '${bridgeDisplay}', '${device.bridge}')">
             ➕ Add
@@ -75,11 +106,15 @@ document.getElementById("scanNetworkBtn").addEventListener("click", async () => 
         </div>
       `;
       item.style.cursor = "pointer";
-      item.style.padding = "10px";
-      item.style.margin = "4px 0";
+      item.style.padding = "12px";
+      item.style.margin = "6px 0";
       item.style.backgroundColor = "#1f2937";
       item.style.borderRadius = "8px";
       item.style.border = "1px solid #374151";
+      item.style.transition = "background-color 0.2s";
+
+      item.onmouseenter = () => item.style.backgroundColor = "#374151";
+      item.onmouseleave = () => item.style.backgroundColor = "#1f2937";
 
       item.onclick = (e) => {
         if (e.target.tagName !== 'BUTTON') {
@@ -102,27 +137,34 @@ document.getElementById("scanNetworkBtn").addEventListener("click", async () => 
 function autoFillDevice(ip, displayName, bridgeType) {
   document.getElementById("newIP").value = ip;
   
-  // Smart hostname generation
+  // Smart hostname generation based on bridge type
   let hostname = displayName;
-  if (displayName === "Unknown Device" || bridgeType === "unknown") {
-    hostname = `device-${ip.replace(/\./g, '-')}`;
+  if (bridgeType.includes("OVS-Core")) {
+    hostname = `core-sw-${ip.split('.').slice(-1)[0]}`;
+  } else if (bridgeType.includes("OVS-Distribution")) {
+    hostname = `dist-sw-${ip.split('.').slice(-1)[0]}`;
+  } else if (bridgeType.includes("OVS-Access")) {
+    hostname = `access-sw-${ip.split('.').slice(-1)[0]}`;
+  } else if (bridgeType.includes("OVS-Switch")) {
+    hostname = `ovs-sw-${ip.split('.').slice(-1)[0]}`;
   } else if (bridgeType.startsWith("linux-")) {
     hostname = `linux-${ip.replace(/\./g, '-')}`;
+  } else {
+    hostname = `device-${ip.replace(/\./g, '-')}`;
   }
   document.getElementById("newHostname").value = hostname;
 
-  // Smart role detection
-  const lowerName = displayName.toLowerCase();
-  if (lowerName.includes("core") || lowerName.includes("cr")) {
+  // Smart role detection based on bridge info
+  if (bridgeType.includes("OVS-Core") || displayName.toLowerCase().includes("core")) {
     document.getElementById("newRole").value = "core";
-  } else if (lowerName.includes("dist") || lowerName.includes("dr")) {
+  } else if (bridgeType.includes("OVS-Distribution") || displayName.toLowerCase().includes("dist")) {
     document.getElementById("newRole").value = "distribution";
   } else {
     document.getElementById("newRole").value = "access";
   }
 
   // Smart device type detection
-  if (bridgeType.startsWith("ovs") || bridgeType.includes("bridge")) {
+  if (bridgeType.includes("OVS") || bridgeType.includes("ovs")) {
     document.getElementById("newDeviceType").value = "ovs";
   } else if (bridgeType.startsWith("linux")) {
     document.getElementById("newDeviceType").value = "linux";

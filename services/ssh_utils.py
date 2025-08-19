@@ -5,7 +5,7 @@ import paramiko
 def detect_bridge(ip: str, username: str = "kali", password: str = "kali") -> str:
     """
     Connect via SSH and detect device type and bridge/interface info.
-    Returns bridge name for OVS, interface info for other devices, or status.
+    Returns bridge info for OVS, interface info for other devices, or status.
     """
     try:
         ssh = paramiko.SSHClient()
@@ -18,12 +18,32 @@ def detect_bridge(ip: str, username: str = "kali", password: str = "kali") -> st
             # It's OVS - get bridge list
             stdin, stdout, stderr = ssh.exec_command("ovs-vsctl br-list 2>/dev/null")
             bridges = stdout.read().decode().splitlines()
-            ssh.close()
             
+            # Also get a quick bridge count and identify main bridges
             if bridges:
-                bridge_name = bridges[0].strip()
-                return bridge_name if bridge_name else "ovs-no-bridges"
-            return "ovs-no-bridges"
+                # Filter out empty lines
+                bridges = [b.strip() for b in bridges if b.strip()]
+                
+                # Try to identify the most important bridge(s)
+                core_bridges = [b for b in bridges if 'core' in b.lower()]
+                dist_bridges = [b for b in bridges if 'dist' in b.lower()]
+                access_bridges = [b for b in bridges if 'access' in b.lower()]
+                
+                ssh.close()
+                
+                # Return a more descriptive string based on bridge types
+                if core_bridges:
+                    return f"OVS-Core ({len(bridges)} bridges: {', '.join(bridges[:3])}{'...' if len(bridges) > 3 else ''})"
+                elif dist_bridges:
+                    return f"OVS-Distribution ({len(bridges)} bridges: {', '.join(bridges[:3])}{'...' if len(bridges) > 3 else ''})"
+                elif access_bridges:
+                    return f"OVS-Access ({len(bridges)} bridges: {', '.join(bridges[:3])}{'...' if len(bridges) > 3 else ''})"
+                else:
+                    # Generic OVS with bridge names
+                    return f"OVS-Switch ({len(bridges)} bridges: {', '.join(bridges[:3])}{'...' if len(bridges) > 3 else ''})"
+            else:
+                ssh.close()
+                return "ovs-no-bridges"
         
         # Check if it's a Linux device with network interfaces
         stdin, stdout, stderr = ssh.exec_command("ip link show 2>/dev/null | grep -E '^[0-9]+:' | head -3")
@@ -63,19 +83,25 @@ def fetch_running_config(ip: str, username: str, password: str,
         ssh.connect(ip, username=username, password=password, timeout=10)
         
         if device_type == "ovs":
-            # Get OVS configuration
-            stdin, stdout, stderr = ssh.exec_command("ovs-vsctl show")
-            config = stdout.read().decode()
-            error = stderr.read().decode()
+            # Get comprehensive OVS configuration
+            commands = [
+                "ovs-vsctl show",
+                "ovs-vsctl br-list", 
+                "ovs-dpctl show"
+            ]
             
-            if not config.strip():
-                # Try bridge info as fallback
-                stdin, stdout, stderr = ssh.exec_command("ovs-vsctl br-list")
-                bridges = stdout.read().decode()
-                if bridges.strip():
-                    config = f"! OVS Bridges:\n{bridges}\n! Use 'ovs-vsctl show' for detailed config"
-                else:
-                    config = f"! No OVS configuration found on {ip}\n! Device may not have OVS installed"
+            config_parts = []
+            for cmd in commands:
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                output = stdout.read().decode()
+                error = stderr.read().decode()
+                
+                if output.strip():
+                    config_parts.append(f"! {cmd}\n{output}\n")
+                elif error.strip():
+                    config_parts.append(f"! {cmd} (error)\n{error}\n")
+            
+            config = "\n".join(config_parts) if config_parts else f"! No OVS configuration found on {ip}"
         
         elif device_type == "linux":
             # Get Linux network configuration
