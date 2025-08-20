@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Cisco Network Automation Dashboard</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="cisco-network-automation-dashboard">Cisco Network Automation Dashboard</h1>
+<p>A Flask-based Cisco network management dashboard for DevNet/Cisco Modeling Labs environments.
+Generated on 2025-08-18T15:45:05.266880Z</p>
+<h2 id="overview">Overview</h2>
+<p>This dashboard is designed to work with <strong>real Cisco switches</strong> in DevNet environments, including:</p>
+<ul>
+<li><strong>Core Switches</strong>: High-performance backbone switches (Catalyst 9000 series)</li>
+<li><strong>Distribution Switches</strong>: Aggregation layer switches (Catalyst 3850/9300 series)</li>
+<li><strong>Access Switches</strong>: End-user access switches (Catalyst 2960/9200 series)</li>
+</ul>
+<p>The dashboard provides automated discovery, topology visualization, and configuration management for Cisco network infrastructures.</p>
+<h2 id="cisco-devnet-integration">Cisco DevNet Integration</h2>
+<h3 id="supported-platforms">Supported Platforms</h3>
+<ul>
+<li><strong>Cisco IOS/IOS-XE</strong>: Catalyst switches, ISR routers</li>
+<li><strong>Cisco Modeling Labs</strong>: Virtual network topologies</li>
+<li><strong>DevNet Sandbox</strong>: Remote lab environments</li>
+<li><strong>Physical Cisco Hardware</strong>: Production networks</li>
+</ul>
+<h3 id="required-cisco-features">Required Cisco Features</h3>
+<ul>
+<li>SSH access enabled (<code>ip ssh version 2</code>)</li>
+<li>User accounts with appropriate privilege levels</li>
+<li>SNMP (optional, for enhanced monitoring)</li>
+<li>CDP/LLDP for neighbor discovery</li>
+</ul>
+<h2 id="quick-start-windows-powershell">Quick Start (Windows PowerShell)</h2>
+<h3 id="1-environment-setup">1. Environment Setup</h3>
+<pre><code class="language-powershell"><span class="hljs-comment"># Clone and navigate to project</span>
+<span class="hljs-built_in">cd</span> <span class="hljs-string">&quot;/mnt/data/new-network-automation-dashboard&quot;</span>
+
+<span class="hljs-comment"># Create virtual environment</span>
+python <span class="hljs-literal">-m</span> venv .venv
+.\.venv\Scripts\Activate.ps1
+
+<span class="hljs-comment"># Install dependencies</span>
+pip install <span class="hljs-literal">-r</span> requirements.txt
+
+<span class="hljs-comment"># Set Flask application</span>
+<span class="hljs-variable">$env:FLASK_APP</span>=<span class="hljs-string">&quot;app.py&quot;</span>
+</code></pre>
+<h3 id="2-cisco-device-configuration">2. Cisco Device Configuration</h3>
+<p>Before using the dashboard, ensure your Cisco devices have SSH enabled:</p>
+<pre><code class="language-cisco">! Enable SSH on Cisco devices
+configure terminal
+hostname YourSwitchName
+ip domain-name yourdomain.com
+crypto key generate rsa modulus 2048
+username admin privilege 15 secret YourPassword
+line vty 0 15
+ transport input ssh
+ login local
+ip ssh version 2
+exit
+</code></pre>
+<h3 id="3-network-configuration">3. Network Configuration</h3>
+<p>Update the network range in <code>config.py</code> to match your DevNet/lab environment:</p>
+<pre><code class="language-python">DEFAULT_SCAN_RANGE = <span class="hljs-string">&quot;192.168.1.0/24&quot;</span>  <span class="hljs-comment"># Update this to your network</span>
+</code></pre>
+<p>Common DevNet ranges:</p>
+<ul>
+<li>Modeling Labs: <code>192.168.1.0/24</code>, <code>10.0.0.0/24</code></li>
+<li>DevNet Sandbox: Provided in lab documentation</li>
+<li>Always-On Sandbox: Check current IP assignments</li>
+</ul>
+<h3 id="4-start-the-application">4. Start the Application</h3>
+<pre><code class="language-powershell">python app.py
+<span class="hljs-comment"># Open http://127.0.0.1:5000</span>
+</code></pre>
+<h2 id="dashboard-features">Dashboard Features</h2>
+<h3 id="-network-discovery">🌐 Network Discovery</h3>
+<ul>
+<li><strong>Automated Scanning</strong>: Discovers Cisco devices via SSH (port 22)</li>
+<li><strong>Device Fingerprinting</strong>: Identifies Cisco IOS/IOS-XE devices</li>
+<li><strong>Topology Detection</strong>: Automatically determines switch roles based on configuration</li>
+</ul>
+<h3 id="-visualization">📊 Visualization</h3>
+<ul>
+<li><strong>Hierarchical Topology</strong>: Core → Distribution → Access layout</li>
+<li><strong>Interactive Network Map</strong>: Click switches for detailed information</li>
+<li><strong>Real-time Status</strong>: Live connection and health monitoring</li>
+</ul>
+<h3 id="-configuration-management">💾 Configuration Management</h3>
+<ul>
+<li><strong>Running Config Backup</strong>: Automated <code>show running-config</code> exports</li>
+<li><strong>Version Control</strong>: Timestamped configuration snapshots</li>
+<li><strong>Bulk Operations</strong>: Mass configuration deployment</li>
+</ul>
+<h3 id="-monitoring">📈 Monitoring</h3>
+<ul>
+<li><strong>Health Metrics</strong>: CPU, memory, temperature monitoring</li>
+<li><strong>Interface Status</strong>: Port utilization and error tracking</li>
+<li><strong>Activity Logging</strong>: Comprehensive audit trail</li>
+</ul>
+<h2 id="api-endpoints">API Endpoints</h2>
+<h3 id="network-scanning">Network Scanning</h3>
+<pre><code class="language-http">POST /api/scan/
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+{
+  &quot;network&quot;: &quot;192.168.1.0/24&quot;,
+  &quot;ports&quot;: [22, 23, 80, 443]
+}
+</code></pre>
+<h3 id="switch-management">Switch Management</h3>
+<pre><code class="language-http"># List all switches
+GET /api/switch/
+
+# Add/Update switch
+POST /api/switch/
+{
+  &quot;hostname&quot;: &quot;core-sw-01&quot;,
+  &quot;ip&quot;: &quot;192.168.1.10&quot;,
+  &quot;role&quot;: &quot;core&quot;,
+  &quot;device_type&quot;: &quot;cisco&quot;
+}
+
+# Get switch details
+GET /api/switch/192.168.1.10
+
+# Delete switch
+DELETE /api/switch/192.168.1.10
+</code></pre>
+<h3 id="configuration-backup">Configuration Backup</h3>
+<pre><code class="language-http">POST /api/backup/run
+{
+  &quot;ip&quot;: &quot;192.168.1.10&quot;,
+  &quot;username&quot;: &quot;admin&quot;,
+  &quot;password&quot;: &quot;password&quot;,
+  &quot;enable_password&quot;: &quot;enable_secret&quot;,
+  &quot;device_type&quot;: &quot;cisco&quot;
+}
+</code></pre>
+<h3 id="bulk-operations">Bulk Operations</h3>
+<pre><code class="language-http"># Bulk import switches
+POST /api/switch/bulk
+{
+  &quot;switches&quot;: [
+    {&quot;hostname&quot;: &quot;core-01&quot;, &quot;ip&quot;: &quot;192.168.1.10&quot;, &quot;role&quot;: &quot;core&quot;},
+    {&quot;hostname&quot;: &quot;dist-01&quot;, &quot;ip&quot;: &quot;192.168.1.20&quot;, &quot;role&quot;: &quot;distribution&quot;},
+    {&quot;hostname&quot;: &quot;access-01&quot;, &quot;ip&quot;: &quot;192.168.1.30&quot;, &quot;role&quot;: &quot;access&quot;}
+  ]
+}
+
+# Export topology
+GET /api/switch/export
+</code></pre>
+<h2 id="devnet-lab-examples">DevNet Lab Examples</h2>
+<h3 id="cisco-modeling-labs-topology">Cisco Modeling Labs Topology</h3>
+<pre><code class="language-yaml"><span class="hljs-comment"># Example CML topology structure</span>
+<span class="hljs-attr">topology:</span>
+  <span class="hljs-attr">core_switches:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">hostname:</span> <span class="hljs-string">&quot;CORE-SW-01&quot;</span>
+      <span class="hljs-attr">ip:</span> <span class="hljs-string">&quot;192.168.1.10&quot;</span>
+      <span class="hljs-attr">model:</span> <span class="hljs-string">&quot;Cat9000v&quot;</span>
+      
+  <span class="hljs-attr">distribution_switches:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">hostname:</span> <span class="hljs-string">&quot;DIST-SW-01&quot;</span> 
+      <span class="hljs-attr">ip:</span> <span class="hljs-string">&quot;192.168.1.20&quot;</span>
+      <span class="hljs-attr">model:</span> <span class="hljs-string">&quot;Cat3850&quot;</span>
+      
+  <span class="hljs-attr">access_switches:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">hostname:</span> <span class="hljs-string">&quot;ACCESS-SW-01&quot;</span>
+      <span class="hljs-attr">ip:</span> <span class="hljs-string">&quot;192.168.1.30&quot;</span> 
+      <span class="hljs-attr">model:</span> <span class="hljs-string">&quot;Cat2960&quot;</span>
+</code></pre>
+<h3 id="devnet-sandbox-access">DevNet Sandbox Access</h3>
+<pre><code class="language-python"><span class="hljs-comment"># Example sandbox credentials</span>
+DEVNET_SANDBOX = {
+    <span class="hljs-string">&quot;host&quot;</span>: <span class="hljs-string">&quot;sandbox-iosxe-latest-1.cisco.com&quot;</span>,
+    <span class="hljs-string">&quot;username&quot;</span>: <span class="hljs-string">&quot;developer&quot;</span>, 
+    <span class="hljs-string">&quot;password&quot;</span>: <span class="hljs-string">&quot;C1sco12345&quot;</span>,
+    <span class="hljs-string">&quot;port&quot;</span>: <span class="hljs-number">22</span>
+}
+</code></pre>
+<h2 id="directory-structure">Directory Structure</h2>
+<pre><code>new-network-automation-dashboard/
+├── data/
+│   ├── switches.json          # Switch inventory database
+│   ├── backups/              # Configuration backups
+│   │   └── &lt;ip&gt;_&lt;timestamp&gt;/ # Individual backup folders
+│   └── activity.log          # System activity log
+├── routes/
+│   ├── scan_routes.py        # Network discovery endpoints  
+│   ├── switch_routes.py      # Switch management endpoints
+│   └── backup_routes.py      # Configuration backup endpoints
+├── services/
+│   ├── net_scan.py          # Cisco device discovery
+│   ├── ssh_utils.py         # SSH connection utilities
+│   └── action_logger.py     # Activity logging
+├── static/
+│   ├── script.js            # Frontend JavaScript
+│   └── styles.css           # Dashboard styling
+├── templates/
+│   └── index.html           # Main dashboard HTML
+├── app.py                   # Flask application
+├── config.py               # Configuration settings
+└── requirements.txt        # Python dependencies
+</code></pre>
+<h2 id="cisco-authentication">Cisco Authentication</h2>
+<h3 id="standard-authentication">Standard Authentication</h3>
+<pre><code class="language-python"><span class="hljs-comment"># SSH credentials for Cisco devices</span>
+credentials = {
+    <span class="hljs-string">&quot;username&quot;</span>: <span class="hljs-string">&quot;admin&quot;</span>,
+    <span class="hljs-string">&quot;password&quot;</span>: <span class="hljs-string">&quot;password&quot;</span>,
+    <span class="hljs-string">&quot;enable_password&quot;</span>: <span class="hljs-string">&quot;enable_secret&quot;</span>  <span class="hljs-comment"># For privileged mode</span>
+}
+</code></pre>
+<h3 id="tacacs-integration-advanced">TACACS+ Integration (Advanced)</h3>
+<pre><code class="language-python"><span class="hljs-comment"># For enterprise environments</span>
+tacacs_config = {
+    <span class="hljs-string">&quot;tacacs_server&quot;</span>: <span class="hljs-string">&quot;192.168.1.100&quot;</span>,
+    <span class="hljs-string">&quot;tacacs_key&quot;</span>: <span class="hljs-string">&quot;shared_secret&quot;</span>,
+    <span class="hljs-string">&quot;fallback_local&quot;</span>: <span class="hljs-literal">True</span>
+}
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="common-issues">Common Issues</h3>
+<p><strong>SSH Connection Failed</strong></p>
+<pre><code class="language-bash"><span class="hljs-comment"># Check SSH service on Cisco device</span>
+show ip ssh
+show line vty 0 15
+
+<span class="hljs-comment"># Verify connectivity</span>
+telnet &lt;device_ip&gt; 22
+ssh -v admin@&lt;device_ip&gt;
+</code></pre>
+<p><strong>Authentication Errors</strong></p>
+<pre><code class="language-cisco">! Enable SSH and create user
+username admin privilege 15 secret password
+line vty 0 15
+ login local
+ transport input ssh
+</code></pre>
+<p><strong>Discovery Issues</strong></p>
+<pre><code class="language-python"><span class="hljs-comment"># Check network connectivity</span>
+ping &lt;device_ip&gt;
+nmap -p <span class="hljs-number">22</span>,<span class="hljs-number">23</span>,<span class="hljs-number">80</span>,<span class="hljs-number">443</span> &lt;network_range&gt;
+</code></pre>
+<p><strong>Configuration Backup Failures</strong></p>
+<pre><code class="language-cisco">! Ensure sufficient privilege level
+show privilege
+enable
+show running-config
+</code></pre>
+<h3 id="devnet-resources">DevNet Resources</h3>
+<ul>
+<li><strong>DevNet Learning Labs</strong>: <a href="https://developer.cisco.com/learning/">https://developer.cisco.com/learning/</a></li>
+<li><strong>Cisco Modeling Labs</strong>: <a href="https://developer.cisco.com/docs/modeling-labs/">https://developer.cisco.com/docs/modeling-labs/</a></li>
+<li><strong>Always-On Sandboxes</strong>: <a href="https://devnetsandbox.cisco.com/">https://devnetsandbox.cisco.com/</a></li>
+<li><strong>API Documentation</strong>: <a href="https://developer.cisco.com/docs/">https://developer.cisco.com/docs/</a></li>
+</ul>
+<h3 id="performance-optimization">Performance Optimization</h3>
+<p><strong>Large Network Scanning</strong></p>
+<pre><code class="language-python"><span class="hljs-comment"># Optimize scan parameters in config.py</span>
+SCAN_TIMEOUT = <span class="hljs-number">2</span>  <span class="hljs-comment"># Seconds per device</span>
+SCAN_THREADS = <span class="hljs-number">10</span>  <span class="hljs-comment"># Concurrent scans</span>
+MAX_DEVICES = <span class="hljs-number">254</span>  <span class="hljs-comment"># Scan limit</span>
+</code></pre>
+<p><strong>Backup Scheduling</strong></p>
+<pre><code class="language-python"><span class="hljs-comment"># Schedule automated backups</span>
+BACKUP_SCHEDULE = {
+    <span class="hljs-string">&quot;daily&quot;</span>: <span class="hljs-string">&quot;02:00&quot;</span>,
+    <span class="hljs-string">&quot;retention_days&quot;</span>: <span class="hljs-number">30</span>,
+    <span class="hljs-string">&quot;compression&quot;</span>: <span class="hljs-literal">True</span>
+}
+</code></pre>
+<h2 id="security-considerations">Security Considerations</h2>
+<h3 id="network-security">Network Security</h3>
+<ul>
+<li>Use dedicated management VLANs</li>
+<li>Implement SSH key-based authentication</li>
+<li>Enable logging and monitoring</li>
+<li>Regular credential rotation</li>
+</ul>
+<h3 id="application-security">Application Security</h3>
+<ul>
+<li>Configure HTTPS in production</li>
+<li>Implement user authentication</li>
+<li>Secure API endpoints</li>
+<li>Regular security updates</li>
+</ul>
+<h2 id="contributing">Contributing</h2>
+<p>When working with Cisco devices:</p>
+<ol>
+<li>Test in DevNet sandbox first</li>
+<li>Follow Cisco configuration best practices</li>
+<li>Document device-specific behaviors</li>
+<li>Include proper error handling</li>
+<li>Update API documentation</li>
+</ol>
+<h2 id="license">License</h2>
+<p>This project is designed for educational and development purposes with Cisco DevNet resources.</p>
+<hr>
+<p><strong>Ready for Cisco DevNet Integration!</strong> 🚀</p>
+<p>The dashboard now prioritizes Cisco device discovery and management while maintaining compatibility with mixed environments.</p>
+
+            <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+            
+        </body>
+        </html>
