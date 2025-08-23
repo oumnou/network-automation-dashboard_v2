@@ -1,4 +1,4 @@
-// static/script.js
+// Enhanced script.js for Cisco Integration
 // ===============================
 // Utility Functions
 // ===============================
@@ -26,157 +26,221 @@ async function fetchJSON(url, opts = {}) {
 }
 
 // ===============================
-// Network Scanner
+// Enhanced Network Scanner for Cisco
 // ===============================
 document.getElementById("scanNetworkBtn").addEventListener("click", async () => {
   const range = document.getElementById("networkRange").value.trim();
-  if (!range) {
-    logActivity("⚠️ Please enter a network range");
-    return;
-  }
   
-  logActivity(`🔍 Scanning ${range}...`);
+  logActivity(`🔍 Starting Cisco device scan...`);
   document.getElementById("scanNetworkBtn").disabled = true;
-  document.getElementById("scanNetworkBtn").textContent = "⏳ Scanning...";
+  document.getElementById("scanNetworkBtn").textContent = "⏳ Scanning Cisco Devices...";
 
   try {
+    // Use targeted scan for known Cisco IPs if no range specified or default range
+    const scanType = (!range || range === "10.10.20.0/24") ? "known_only" : "full";
+    
     const data = await fetchJSON("/api/scan/", { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ network: range })
+      body: JSON.stringify({ 
+        network: range,
+        scan_type: scanType
+      })
     });
 
-    const scanResultsDiv = document.getElementById("scanResults");
-    scanResultsDiv.innerHTML = "";
-    scanResultsDiv.style.display = "block";
-
-    if (!data.results || data.results.length === 0) {
-      scanResultsDiv.innerHTML = "<p>No devices found with SSH access.</p>";
-      logActivity("⚠️ No SSH-accessible devices detected");
-      return;
-    }
-
-    data.results.forEach(device => {
-      const item = document.createElement("div");
-      item.className = "scan-result-item";
-      
-      // Better bridge display parsing
-      let bridgeDisplay = device.bridge;
-      let deviceIcon = "🔧"; // Default icon
-      
-      if (device.bridge.includes("OVS-Core")) {
-        deviceIcon = "🏛️";
-        bridgeDisplay = device.bridge;
-      } else if (device.bridge.includes("OVS-Distribution")) {
-        deviceIcon = "🏢";
-        bridgeDisplay = device.bridge;
-      } else if (device.bridge.includes("OVS-Access")) {
-        deviceIcon = "🏠";
-        bridgeDisplay = device.bridge;
-      } else if (device.bridge.includes("OVS-Switch")) {
-        deviceIcon = "🌐";
-        bridgeDisplay = device.bridge;
-      } else if (device.bridge.startsWith("linux-")) {
-        deviceIcon = "🐧";
-        bridgeDisplay = device.bridge.replace("linux-", "Linux: ");
-      } else if (device.bridge === "ovs-no-bridges") {
-        deviceIcon = "⚠️";
-        bridgeDisplay = "OVS (No Bridges)";
-      } else if (device.bridge === "unknown") {
-        deviceIcon = "❓";
-        bridgeDisplay = "Unknown Device";
-      }
-      
-      const portsDisplay = device.open_ports ? device.open_ports.join(", ") : "N/A";
-      
-      item.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span style="font-size: 16px;">${deviceIcon}</span>
-              <b>${bridgeDisplay}</b>
-            </div>
-            <div style="color: #9ca3af; font-size: 13px;">
-              IP: ${device.ip} | Status: ${device.status} | Ports: ${portsDisplay}
-            </div>
-          </div>
-          <button class="btn btn-sm" onclick="autoFillDevice('${device.ip}', '${bridgeDisplay}', '${device.bridge}')">
-            ➕ Add
-          </button>
-        </div>
-      `;
-      item.style.cursor = "pointer";
-      item.style.padding = "12px";
-      item.style.margin = "6px 0";
-      item.style.backgroundColor = "#1f2937";
-      item.style.borderRadius = "8px";
-      item.style.border = "1px solid #374151";
-      item.style.transition = "background-color 0.2s";
-
-      item.onmouseenter = () => item.style.backgroundColor = "#374151";
-      item.onmouseleave = () => item.style.backgroundColor = "#1f2937";
-
-      item.onclick = (e) => {
-        if (e.target.tagName !== 'BUTTON') {
-          autoFillDevice(device.ip, bridgeDisplay, device.bridge);
-        }
-      };
-
-      scanResultsDiv.appendChild(item);
-    });
-
-    logActivity(`✅ Scan complete: ${data.results.length} devices found`);
+    displayScanResults(data);
+    
   } catch (error) {
-    logActivity(`❌ Scan failed: ${error.message}`);
+    logActivity(`❌ Cisco scan failed: ${error.message}`);
   } finally {
     document.getElementById("scanNetworkBtn").disabled = false;
-    document.getElementById("scanNetworkBtn").textContent = "🔍 Scan for Switches";
+    document.getElementById("scanNetworkBtn").textContent = "🔍 Scan for Cisco Devices";
   }
 });
 
-function autoFillDevice(ip, displayName, bridgeType) {
-  document.getElementById("newIP").value = ip;
+// Add quick scan button for known devices
+function createQuickScanButton() {
+  const controlPanel = document.querySelector('.control-panel');
+  const quickScanBtn = document.createElement('button');
+  quickScanBtn.className = 'btn btn-success';
+  quickScanBtn.innerHTML = '⚡ Quick Scan';
+  quickScanBtn.title = 'Scan known Cisco device IPs only';
+  quickScanBtn.onclick = quickScanKnownDevices;
+  controlPanel.insertBefore(quickScanBtn, controlPanel.firstChild);
+}
+
+async function quickScanKnownDevices() {
+  logActivity("⚡ Quick scanning known Cisco devices...");
   
-  // Smart hostname generation based on bridge type
-  let hostname = displayName;
-  if (bridgeType.includes("OVS-Core")) {
-    hostname = `core-sw-${ip.split('.').slice(-1)[0]}`;
-  } else if (bridgeType.includes("OVS-Distribution")) {
-    hostname = `dist-sw-${ip.split('.').slice(-1)[0]}`;
-  } else if (bridgeType.includes("OVS-Access")) {
-    hostname = `access-sw-${ip.split('.').slice(-1)[0]}`;
-  } else if (bridgeType.includes("OVS-Switch")) {
-    hostname = `ovs-sw-${ip.split('.').slice(-1)[0]}`;
-  } else if (bridgeType.startsWith("linux-")) {
-    hostname = `linux-${ip.replace(/\./g, '-')}`;
-  } else {
-    hostname = `device-${ip.replace(/\./g, '-')}`;
+  try {
+    const data = await fetchJSON("/api/scan/known", { method: "POST" });
+    displayScanResults(data);
+    
+    if (data.validation) {
+      const val = data.validation;
+      logActivity(`📊 Topology: ${val.found_count}/${val.expected_count} devices found`);
+      if (val.missing_devices.length > 0) {
+        logActivity(`⚠️ Missing: ${val.missing_devices.join(', ')}`);
+      }
+    }
+  } catch (error) {
+    logActivity(`❌ Quick scan failed: ${error.message}`);
   }
-  document.getElementById("newHostname").value = hostname;
+}
 
-  // Smart role detection based on bridge info
-  if (bridgeType.includes("OVS-Core") || displayName.toLowerCase().includes("core")) {
-    document.getElementById("newRole").value = "core";
-  } else if (bridgeType.includes("OVS-Distribution") || displayName.toLowerCase().includes("dist")) {
-    document.getElementById("newRole").value = "distribution";
-  } else {
-    document.getElementById("newRole").value = "access";
-  }
+function displayScanResults(data) {
+  const scanResultsDiv = document.getElementById("scanResults");
+  scanResultsDiv.innerHTML = "";
+  scanResultsDiv.style.display = "block";
 
-  // Smart device type detection
-  if (bridgeType.includes("OVS") || bridgeType.includes("ovs")) {
-    document.getElementById("newDeviceType").value = "ovs";
-  } else if (bridgeType.startsWith("linux")) {
-    document.getElementById("newDeviceType").value = "linux";
-  } else {
-    document.getElementById("newDeviceType").value = "cisco";
+  if (!data.results || data.results.length === 0) {
+    scanResultsDiv.innerHTML = "<p>No Cisco devices found or accessible.</p>";
+    logActivity("⚠️ No accessible Cisco devices detected");
+    return;
   }
 
-  logActivity(`➡️ Auto-filled form with ${hostname} (${ip})`);
+  // Add scan summary
+  if (data.scan_info) {
+    const summary = document.createElement("div");
+    summary.style.cssText = "background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 13px;";
+    summary.innerHTML = `
+      <strong>Scan Results:</strong> ${data.scan_info.authenticated_count}/${data.scan_info.total_found} devices accessible 
+      (${data.scan_info.duration}s, ${data.scan_info.scan_type})
+    `;
+    scanResultsDiv.appendChild(summary);
+  }
+
+  data.results.forEach(device => {
+    const item = document.createElement("div");
+    item.className = "scan-result-item";
+    
+    // Enhanced display for Cisco devices
+    const deviceIcon = getCiscoDeviceIcon(device);
+    const roleColor = getRoleColor(device.role_hint);
+    const statusIcon = device.authenticated ? "✅" : "❌";
+    
+    item.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">${deviceIcon}</span>
+            <strong style="color: ${roleColor};">${device.hostname}</strong>
+            <span style="font-size: 12px;">${statusIcon}</span>
+          </div>
+          <div style="color: #9ca3af; font-size: 13px; line-height: 1.4;">
+            <div><strong>IP:</strong> ${device.ip} | <strong>Role:</strong> ${device.role_hint}</div>
+            <div><strong>Model:</strong> ${device.model} | <strong>IOS:</strong> ${device.ios_version}</div>
+            <div><strong>Interfaces:</strong> ${device.interface_count} | <strong>Uptime:</strong> ${device.uptime}</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <button class="btn btn-sm" onclick="addCiscoDevice('${device.ip}', ${JSON.stringify(device).replace(/'/g, "&apos;")})">
+            ➕ Add
+          </button>
+          <button class="btn btn-sm btn-secondary" onclick="viewDeviceDetails('${device.ip}')">
+            👁️ View
+          </button>
+        </div>
+      </div>
+    `;
+    
+    item.style.cssText = `
+      cursor: pointer; padding: 16px; margin: 8px 0; 
+      background: rgba(31, 41, 59, 0.8); border-radius: 8px; 
+      border: 1px solid rgba(71, 85, 105, 0.5); 
+      transition: all 0.2s ease;
+    `;
+
+    item.onmouseenter = () => item.style.backgroundColor = "rgba(71, 85, 105, 0.3)";
+    item.onmouseleave = () => item.style.backgroundColor = "rgba(31, 41, 59, 0.8)";
+
+    scanResultsDiv.appendChild(item);
+  });
+
+  logActivity(`✅ Cisco scan complete: ${data.results.length} devices found`);
+}
+
+function getCiscoDeviceIcon(device) {
+  if (device.role_hint === "core") return "🏛️";
+  if (device.role_hint === "distribution") return "🏢";
+  if (device.role_hint === "access") return "🏠";
+  return "🌐";
+}
+
+function getRoleColor(role) {
+  switch(role) {
+    case "core": return "#60a5fa";
+    case "distribution": return "#a78bfa";
+    case "access": return "#34d399";
+    default: return "#9ca3af";
+  }
+}
+
+async function addCiscoDevice(ip, deviceData) {
+  const device = typeof deviceData === 'string' ? JSON.parse(deviceData) : deviceData;
+  
+  document.getElementById("newIP").value = ip;
+  document.getElementById("newHostname").value = device.hostname || `cisco-${ip.split('.').pop()}`;
+  document.getElementById("newRole").value = device.role_hint || "access";
+  document.getElementById("newDeviceType").value = "cisco";
+
+  logActivity(`➡️ Auto-filled form with ${device.hostname} (${ip})`);
+  
+  // Auto-submit if device looks good
+  if (device.authenticated && device.hostname !== "unknown") {
+    document.getElementById("addSwitchForm").dispatchEvent(new Event('submit'));
+  }
+}
+
+async function viewDeviceDetails(ip) {
+  logActivity(`👁️ Viewing details for ${ip}...`);
+  
+  try {
+    const data = await fetchJSON(`/api/scan/single`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip })
+    });
+    
+    if (data.result) {
+      showCiscoDeviceDetails(data.result);
+    }
+  } catch (error) {
+    logActivity(`❌ Failed to get device details: ${error.message}`);
+  }
+}
+
+function showCiscoDeviceDetails(device) {
+  // Update the switch details panel with comprehensive Cisco info
+  document.getElementById("switchName").textContent = device.hostname || device.ip;
+  document.getElementById("switchIP").textContent = device.ip;
+  document.getElementById("switchRole").textContent = device.role_hint || "access";
+  
+  // Update status with more detail
+  const statusDiv = document.getElementById("switchStatus");
+  const statusSpan = statusDiv.querySelector("span");
+  if (statusSpan) {
+    statusSpan.textContent = device.authenticated ? "Online" : "Offline";
+    statusDiv.className = `status-indicator ${device.authenticated ? "status-healthy" : "status-critical"}`;
+  }
+  
+  // Show Cisco-specific metrics
+  document.getElementById("cpuValue").textContent = "N/A"; // Could be enhanced with SNMP
+  document.getElementById("memoryValue").textContent = "N/A";
+  document.getElementById("tempValue").textContent = "N/A";
+  document.getElementById("interfacesValue").textContent = device.interface_count || "—";
+  
+  // Update form for editing
+  document.getElementById("newHostname").value = device.hostname || "";
+  document.getElementById("newIP").value = device.ip || "";
+  document.getElementById("newRole").value = device.role_hint || "access";
+  document.getElementById("newDeviceType").value = "cisco";
+  
+  logActivity(`📋 Viewing Cisco device: ${device.hostname} (${device.model}, IOS ${device.ios_version})`);
 }
 
 // ===============================
-// Add / Update Switch
+// Enhanced Add/Update Switch for Cisco
 // ===============================
 document.getElementById("addSwitchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -190,9 +254,8 @@ document.getElementById("addSwitchForm").addEventListener("submit", async (e) =>
     return;
   }
 
-  // Basic IP validation
-  const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-  if (!ipRegex.test(ip)) {
+  // Enhanced IP validation
+  if (!validateIPAddress(ip)) {
     logActivity("⚠️ Invalid IP address format");
     return;
   }
@@ -205,112 +268,24 @@ document.getElementById("addSwitchForm").addEventListener("submit", async (e) =>
         hostname, 
         ip, 
         role,
-        device_type: deviceType 
+        device_type: deviceType,
+        status: "up" // Assume up if we're adding it
       })
     });
 
     if (data.ok) {
-      logActivity(`✅ Switch saved: ${hostname} (${ip}, ${role})`);
+      logActivity(`✅ Cisco device saved: ${hostname} (${ip}, ${role})`);
       document.getElementById("addSwitchForm").reset();
-      document.getElementById("newDeviceType").value = "ovs"; // Reset to default
-      await loadTopology();
-    } else {
-      logActivity(`❌ Failed to save switch: ${data.error}`);
-    }
-  } catch (error) {
-    logActivity(`❌ Failed to save switch: ${error.message}`);
-  }
-});
-
-// ===============================
-// Delete Switch
-// ===============================
-document.getElementById("deleteBtn").addEventListener("click", async () => {
-  const ip = document.getElementById("newIP").value.trim();
-  if (!ip) {
-    logActivity("⚠️ Enter an IP address to delete");
-    return;
-  }
-
-  if (!confirm(`Are you sure you want to delete the switch at ${ip}?`)) {
-    return;
-  }
-
-  try {
-    const data = await fetchJSON(`/api/switch/${ip}`, { method: "DELETE" });
-    if (data.ok) {
-      logActivity(`✅ Switch ${ip} deleted`);
-      document.getElementById("addSwitchForm").reset();
+      document.getElementById("newDeviceType").value = "cisco"; // Default to Cisco
       await loadTopology();
     }
   } catch (error) {
-    logActivity(`❌ Failed to delete switch: ${error.message}`);
+    logActivity(`❌ Failed to save Cisco device: ${error.message}`);
   }
 });
 
 // ===============================
-// Backup Switch Config
-// ===============================
-document.getElementById("backupBtn").addEventListener("click", async () => {
-  const ip = document.getElementById("switchIP").textContent;
-  if (!ip || ip === "—") {
-    logActivity("⚠️ No switch selected for backup");
-    return;
-  }
-
-  // Create a modal-like prompt
-  const credentials = await promptForCredentials();
-  if (!credentials) {
-    logActivity("⚠️ Backup cancelled (missing credentials)");
-    return;
-  }
-
-  logActivity(`💾 Starting backup for ${ip}...`);
-  document.getElementById("backupBtn").disabled = true;
-  document.getElementById("backupBtn").textContent = "⏳ Backing up...";
-
-  try {
-    // Get device type from current switch data
-    const switches = await fetchJSON("/api/switch/");
-    const currentSwitch = switches.find(sw => sw.ip === ip);
-    const deviceType = currentSwitch?.device_type || "ovs";
-
-    const data = await fetchJSON("/api/backup/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ip,
-        username: credentials.username,
-        password: credentials.password,
-        device_type: deviceType
-      })
-    });
-
-    if (data.ok) {
-      logActivity(`✅ Backup complete: ${data.meta.bytes} bytes saved (${data.engine})`);
-    } else {
-      logActivity(`❌ Backup failed: ${data.error}`);
-    }
-  } catch (error) {
-    logActivity(`❌ Backup failed: ${error.message}`);
-  } finally {
-    document.getElementById("backupBtn").disabled = false;
-    document.getElementById("backupBtn").textContent = "💾 Backup";
-  }
-});
-
-async function promptForCredentials() {
-  const username = prompt("Enter SSH username:", "kali");
-  if (!username) return null;
-  
-  const password = prompt("Enter SSH password:", "kali");
-  if (!password) return null;
-  
-  return { username, password };
-}
-
-// ===============================
-// Refresh / Topology Visualization
+// Enhanced Topology Visualization
 // ===============================
 async function loadTopology() {
   try {
@@ -320,71 +295,83 @@ async function loadTopology() {
     if (!data || data.length === 0) {
       container.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #9ca3af; text-align: center;">
-          <div style="font-size: 24px; margin-bottom: 10px;">🌐</div>
-          <div>No switches configured</div>
-          <div style="font-size: 14px; margin-top: 5px;">Use the scanner to discover switches</div>
+          <div style="font-size: 24px; margin-bottom: 10px;">🏢</div>
+          <div>No Cisco switches configured</div>
+          <div style="font-size: 14px; margin-top: 5px;">Use the scanner to discover Cisco devices</div>
         </div>
       `;
       return;
     }
 
-    const nodes = data.map(sw => ({
-      id: sw.ip,
-      label: sw.hostname || sw.ip,
-      shape: "dot",
-      size: 30,
-      font: { color: '#e5e7eb', size: 12 },
-      color: {
-        background: sw.role === "core" ? "#60a5fa" : 
-                   sw.role === "distribution" ? "#a78bfa" : "#34d399",
-        border: "#1f2937"
-      },
-      title: `${sw.hostname}\nIP: ${sw.ip}\nRole: ${sw.role}\nType: ${sw.device_type || 'unknown'}`
-    }));
+    // Enhanced node creation for Cisco devices
+    const nodes = data.map(sw => {
+      const roleColors = {
+        "core": "#60a5fa",
+        "distribution": "#a78bfa", 
+        "access": "#34d399"
+      };
+      
+      const roleIcons = {
+        "core": "🏛️",
+        "distribution": "🏢",
+        "access": "🏠"
+      };
+      
+      return {
+        id: sw.ip,
+        label: `${roleIcons[sw.role] || "🌐"}\n${sw.hostname || sw.ip}`,
+        shape: "dot",
+        size: sw.role === "core" ? 40 : sw.role === "distribution" ? 35 : 30,
+        font: { 
+          color: '#e5e7eb', 
+          size: 11,
+          multi: true
+        },
+        color: {
+          background: roleColors[sw.role] || "#9ca3af",
+          border: "#1f2937",
+          highlight: {
+            background: roleColors[sw.role] || "#9ca3af",
+            border: "#ffffff"
+          }
+        },
+        title: `<b>${sw.hostname}</b><br/>
+                 IP: ${sw.ip}<br/>
+                 Role: ${sw.role}<br/>
+                 Type: ${sw.device_type || 'cisco'}<br/>
+                 Status: ${sw.status || 'unknown'}`
+      };
+    });
 
-    const edges = [];
-    
-    // Create a hierarchical topology
-    const coreNodes = nodes.filter(n => data.find(sw => sw.ip === n.id && sw.role === "core"));
-    const distNodes = nodes.filter(n => data.find(sw => sw.ip === n.id && sw.role === "distribution"));
-    const accessNodes = nodes.filter(n => data.find(sw => sw.ip === n.id && sw.role === "access"));
-
-    // Connect distribution switches to core switches
-    if (coreNodes.length > 0 && distNodes.length > 0) {
-      coreNodes.forEach(core => {
-        distNodes.forEach(dist => {
-          edges.push({ from: core.id, to: dist.id });
-        });
-      });
-    }
-
-    // Connect access switches to distribution switches (or core if no dist)
-    const parentNodes = distNodes.length > 0 ? distNodes : coreNodes;
-    if (parentNodes.length > 0) {
-      accessNodes.forEach((access, i) => {
-        const parentIndex = i % parentNodes.length;
-        edges.push({ from: parentNodes[parentIndex].id, to: access.id });
-      });
-    }
+    // Create hierarchical topology based on your Cisco network
+    const edges = createCiscoTopologyEdges(data);
 
     const options = {
       physics: { 
         enabled: true,
-        stabilization: { iterations: 100 },
-        barnesHut: {
-          gravitationalConstant: -8000,
-          springConstant: 0.001,
-          springLength: 200
+        stabilization: { iterations: 150 },
+        hierarchicalRepulsion: {
+          nodeDistance: 120,
+          centralGravity: 0.3,
+          springLength: 100,
+          springConstant: 0.01,
+          damping: 0.09
         }
       },
       edges: { 
         arrows: { to: { enabled: false } },
-        color: { color: '#374151' },
-        width: 2
+        color: { color: '#475569' },
+        width: 2,
+        smooth: {
+          type: 'continuous',
+          forceDirection: 'vertical',
+          roundness: 0.4
+        }
       },
       interaction: {
         hover: true,
-        tooltipDelay: 200
+        tooltipDelay: 200,
+        selectConnectedEdges: false
       },
       layout: {
         hierarchical: {
@@ -392,7 +379,8 @@ async function loadTopology() {
           direction: 'UD',
           sortMethod: 'directed',
           nodeSpacing: 150,
-          levelSeparation: 200
+          levelSeparation: 180,
+          shakeTowards: 'roots'
         }
       }
     };
@@ -406,10 +394,10 @@ async function loadTopology() {
       }
     });
 
-    logActivity(`🔄 Topology refreshed: ${data.length} switches loaded`);
+    logActivity(`🔄 Cisco topology loaded: ${data.length} devices`);
     
   } catch (error) {
-    logActivity(`❌ Failed to load topology: ${error.message}`);
+    logActivity(`❌ Failed to load Cisco topology: ${error.message}`);
     const container = document.getElementById("network-topology");
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #ef4444; text-align: center;">
@@ -421,52 +409,178 @@ async function loadTopology() {
   }
 }
 
-async function showSwitchDetails(ip, switchData = null) {
-  try {
-    const sw = switchData ? switchData.find(s => s.ip === ip) : await fetchJSON(`/api/switch/${ip}`);
+function createCiscoTopologyEdges(switches) {
+  const edges = [];
+  
+  // Find devices by role
+  const coreDevices = switches.filter(sw => sw.role === "core");
+  const distDevices = switches.filter(sw => sw.role === "distribution"); 
+  const accessDevices = switches.filter(sw => sw.role === "access");
+  
+  // Connect distribution to core (based on your topology)
+  if (coreDevices.length > 0 && distDevices.length > 0) {
+    const core1 = coreDevices.find(sw => sw.hostname.includes("Core1"));
+    if (core1) {
+      distDevices.forEach(dist => {
+        edges.push({ from: core1.ip, to: dist.ip });
+      });
+    }
+  }
+  
+  // Connect access devices to distribution (based on your topology)
+  if (distDevices.length > 0 && accessDevices.length > 0) {
+    const dist1 = distDevices.find(sw => sw.hostname.includes("Dist1"));
+    const dist2 = distDevices.find(sw => sw.hostname.includes("Dist2"));
     
-    if (!sw) {
-      logActivity(`❌ Switch details not found for ${ip}`);
-      return;
+    accessDevices.forEach(access => {
+      if (access.hostname.includes("End1") || access.hostname.includes("End2")) {
+        // Connect End1 and End2 to Dist1
+        if (dist1) edges.push({ from: dist1.ip, to: access.ip });
+      } else if (access.hostname.includes("End3") || access.hostname.includes("End4")) {
+        // Connect End3 and End4 to Dist2
+        if (dist2) edges.push({ from: dist2.ip, to: access.ip });
+      }
+    });
+  }
+  
+  return edges;
+}
+
+// ===============================
+// Enhanced Backup for Cisco
+// ===============================
+document.getElementById("backupBtn").addEventListener("click", async () => {
+  const ip = document.getElementById("switchIP").textContent;
+  if (!ip || ip === "—") {
+    logActivity("⚠️ No Cisco device selected for backup");
+    return;
+  }
+
+  // Get Cisco credentials
+  const credentials = await promptForCiscoCredentials();
+  if (!credentials) {
+    logActivity("⚠️ Backup cancelled (missing credentials)");
+    return;
+  }
+
+  logActivity(`💾 Starting Cisco config backup for ${ip}...`);
+  document.getElementById("backupBtn").disabled = true;
+  document.getElementById("backupBtn").textContent = "⏳ Backing up...";
+
+  try {
+    const data = await fetchJSON("/api/backup/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ip,
+        username: credentials.username,
+        password: credentials.password,
+        enable_password: credentials.enable_password,
+        device_type: "cisco"
+      })
+    });
+
+    if (data.ok) {
+      logActivity(`✅ Cisco backup complete: ${data.meta.bytes} bytes saved`);
+      logActivity(`📁 Config saved to: ${data.backup_dir}`);
+    } else {
+      logActivity(`❌ Cisco backup failed: ${data.error}`);
     }
-
-    // Update switch details panel
-    document.getElementById("switchName").textContent = sw.hostname || ip;
-    document.getElementById("switchIP").textContent = sw.ip || "—";
-    document.getElementById("switchRole").textContent = sw.role || "—";
-
-    // Update status indicator
-    const statusDiv = document.getElementById("switchStatus");
-    const statusSpan = statusDiv.querySelector("span");
-    if (statusSpan) {
-      statusSpan.textContent = sw.status || "unknown";
-    }
-
-    // Update form with switch data for editing
-    document.getElementById("newHostname").value = sw.hostname || "";
-    document.getElementById("newIP").value = sw.ip || "";
-    document.getElementById("newRole").value = sw.role || "access";
-    if (document.getElementById("newDeviceType")) {
-      document.getElementById("newDeviceType").value = sw.device_type || "ovs";
-    }
-
-    // Mock health metrics (replace with real data when available)
-    document.getElementById("cpuValue").textContent = "—";
-    document.getElementById("memoryValue").textContent = "—";
-    document.getElementById("tempValue").textContent = "—";
-    document.getElementById("interfacesValue").textContent = "—";
-
-    logActivity(`📋 Viewing details for ${sw.hostname} (${ip})`);
   } catch (error) {
-    logActivity(`❌ Failed to load switch details: ${error.message}`);
+    logActivity(`❌ Cisco backup failed: ${error.message}`);
+  } finally {
+    document.getElementById("backupBtn").disabled = false;
+    document.getElementById("backupBtn").textContent = "💾 Backup Config";
+  }
+});
+
+async function promptForCiscoCredentials() {
+  // Use default Cisco sandbox credentials
+  const username = prompt("Enter Cisco username:", "developer");
+  if (!username) return null;
+  
+  const password = prompt("Enter Cisco password:", "C1sco12345");
+  if (!password) return null;
+  
+  const enable_password = prompt("Enter enable password:", "C1sco12345");
+  
+  return { username, password, enable_password };
+}
+
+// ===============================
+// Enhanced Utility Functions
+// ===============================
+function validateIPAddress(ip) {
+  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  return ipRegex.test(ip);
+}
+
+function validateNetworkRange(range) {
+  const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/([0-9]|[1-2][0-9]|3[0-2])$/;
+  return cidrRegex.test(range);
+}
+
+// ===============================
+// Cisco-Specific Features
+// ===============================
+async function testCiscoConnectivity(ip) {
+  logActivity(`🔍 Testing Cisco connectivity to ${ip}...`);
+  
+  try {
+    const result = await fetchJSON(`/api/scan/single`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip })
+    });
+    
+    if (result.result && result.result.authenticated) {
+      logActivity(`✅ Cisco device ${ip} is accessible: ${result.result.hostname}`);
+      return result.result;
+    } else {
+      logActivity(`❌ Cisco device ${ip} not accessible: ${result.result?.error || 'Unknown error'}`);
+      return null;
+    }
+  } catch (error) {
+    logActivity(`❌ Connectivity test failed for ${ip}: ${error.message}`);
+    return null;
+  }
+}
+
+// Add topology validation function
+async function validateCiscoTopology() {
+  logActivity("🔍 Validating Cisco topology...");
+  
+  try {
+    const data = await fetchJSON("/api/scan/topology/validate");
+    const validation = data.validation;
+    
+    logActivity(`📊 Topology Status: ${validation.found_count}/${validation.expected_count} devices found`);
+    
+    if (validation.topology_valid) {
+      logActivity("✅ Cisco topology matches expected layout");
+    } else {
+      logActivity("⚠️ Topology differs from expected layout");
+      
+      if (validation.missing_devices.length > 0) {
+        logActivity(`❌ Missing devices: ${validation.missing_devices.join(', ')}`);
+      }
+      
+      const roles = validation.role_distribution;
+      logActivity(`📋 Found: ${roles.core} core, ${roles.distribution} dist, ${roles.access} access`);
+    }
+    
+    return validation;
+  } catch (error) {
+    logActivity(`❌ Topology validation failed: ${error.message}`);
+    return null;
   }
 }
 
 // ===============================
-// Additional Button Handlers
+// Enhanced Button Handlers
 // ===============================
 document.getElementById("refreshBtn").addEventListener("click", () => {
-  logActivity("🔄 Manual refresh triggered");
+  logActivity("🔄 Manual topology refresh triggered");
   loadTopology();
 });
 
@@ -479,52 +593,105 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
   try {
     const data = await fetchJSON("/api/switch/");
     if (!data || data.length === 0) {
-      logActivity("⚠️ No topology data to export");
+      logActivity("⚠️ No Cisco topology data to export");
       return;
     }
 
     const exportData = {
       timestamp: new Date().toISOString(),
+      network_type: "cisco_sandbox",
       switches: data,
-      total_count: data.length
+      total_count: data.length,
+      role_summary: {
+        core: data.filter(sw => sw.role === "core").length,
+        distribution: data.filter(sw => sw.role === "distribution").length,
+        access: data.filter(sw => sw.role === "access").length
+      }
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `network-topology-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `cisco-topology-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    logActivity(`📤 Topology exported: ${data.length} switches`);
+    logActivity(`📤 Cisco topology exported: ${data.length} devices`);
   } catch (error) {
     logActivity(`❌ Export failed: ${error.message}`);
   }
 });
 
 // ===============================
-// Auto-refresh and Error Recovery
+// Delete Switch Handler
 // ===============================
-let autoRefreshInterval = null;
-
-function startAutoRefresh(intervalMs = 60000) {
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
+document.getElementById("deleteBtn").addEventListener("click", async () => {
+  const ip = document.getElementById("newIP").value.trim();
+  if (!ip) {
+    logActivity("⚠️ Enter an IP address to delete");
+    return;
   }
-  
-  autoRefreshInterval = setInterval(() => {
-    logActivity("🔄 Auto-refresh triggered");
-    loadTopology();
-  }, intervalMs);
-}
 
-function stopAutoRefresh() {
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
-    autoRefreshInterval = null;
+  if (!confirm(`Are you sure you want to delete the Cisco device at ${ip}?`)) {
+    return;
+  }
+
+  try {
+    const data = await fetchJSON(`/api/switch/${ip}`, { method: "DELETE" });
+    if (data.ok) {
+      logActivity(`✅ Cisco device ${ip} deleted from topology`);
+      document.getElementById("addSwitchForm").reset();
+      document.getElementById("newDeviceType").value = "cisco";
+      await loadTopology();
+    }
+  } catch (error) {
+    logActivity(`❌ Failed to delete Cisco device: ${error.message}`);
+  }
+});
+
+// ===============================
+// Enhanced Switch Details Display
+// ===============================
+async function showSwitchDetails(ip, switchData = null) {
+  try {
+    const sw = switchData ? switchData.find(s => s.ip === ip) : await fetchJSON(`/api/switch/${ip}`);
+    
+    if (!sw) {
+      logActivity(`❌ Switch details not found for ${ip}`);
+      return;
+    }
+
+    // Update switch details panel with Cisco-specific info
+    document.getElementById("switchName").textContent = sw.hostname || ip;
+    document.getElementById("switchIP").textContent = sw.ip || "—";
+    document.getElementById("switchRole").textContent = (sw.role || "access").toUpperCase();
+
+    // Update status with better visual indication
+    const statusDiv = document.getElementById("switchStatus");
+    const statusSpan = statusDiv.querySelector("span");
+    if (statusSpan) {
+      const status = sw.status || "unknown";
+      statusSpan.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      
+      // Update status indicator color
+      statusDiv.className = `status-indicator ${
+        status === "up" ? "status-healthy" : 
+        status === "down" ? "status-critical" : "status-warning"
+      }`;
+    }
+
+    // Update form with switch data for editing
+    document.getElementById("newHostname").value = sw.hostname || "";
+    document.getElementById("newIP").value = sw.ip || "";
+    document.getElementById("newRole").value = sw.role || "access";
+    document.getElementById("newDeviceType").value = sw.device_type || "cisco";
+
+    logActivity(`📋 Viewing Cisco device: ${sw.hostname} (${ip})`);
+  } catch (error) {
+    logActivity(`❌ Failed to load switch details: ${error.message}`);
   }
 }
 
@@ -542,89 +709,32 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         document.getElementById("scanNetworkBtn").click();
         break;
+      case 'q':
+        e.preventDefault();
+        quickScanKnownDevices();
+        break;
       case 'e':
         e.preventDefault();
         document.getElementById("exportBtn").click();
+        break;
+      case 't':
+        e.preventDefault();
+        validateCiscoTopology();
         break;
     }
   }
 });
 
 // ===============================
-// Network Status Monitoring
+// Input Validation
 // ===============================
-async function checkNetworkStatus() {
-  try {
-    const response = await fetch('/api/logs/tail?n=1');
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-
-// ===============================
-// Enhanced Error Handling
-// ===============================
-window.addEventListener('error', (e) => {
-  logActivity(`❌ JavaScript Error: ${e.message}`);
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-  logActivity(`❌ Promise Rejection: ${e.reason}`);
-});
-
-// ===============================
-// Responsive Design Helpers
-// ===============================
-function adjustLayoutForScreen() {
-  const dashboard = document.querySelector('.dashboard');
-  if (window.innerWidth < 1200) {
-    dashboard.style.gridTemplateColumns = '1fr';
-    dashboard.style.gap = '12px';
-  } else {
-    dashboard.style.gridTemplateColumns = '1fr 360px';
-    dashboard.style.gap = '16px';
-  }
-}
-
-window.addEventListener('resize', adjustLayoutForScreen);
-
-// ===============================
-// Init and Startup
-// ===============================
-window.onload = () => {
-  logActivity("[INIT] Dashboard loaded successfully");
-  logActivity("[INFO] Ready to scan network and manage switches");
-  logActivity("[TIP] Use Ctrl+R to refresh, Ctrl+S to scan, Ctrl+E to export");
-  
-  adjustLayoutForScreen();
-  loadTopology();
-  
-  // Start auto-refresh (optional - uncomment if desired)
-  // startAutoRefresh(60000); // 60 seconds
-};
-
-// ===============================
-// Additional Utility Functions
-// ===============================
-function validateIPAddress(ip) {
-  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  return ipRegex.test(ip);
-}
-
-function validateNetworkRange(range) {
-  const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/([0-9]|[1-2][0-9]|3[0-2])$/;
-  return cidrRegex.test(range);
-}
-
-// Add input validation
 document.getElementById("newIP").addEventListener('blur', (e) => {
   const ip = e.target.value.trim();
   if (ip && !validateIPAddress(ip)) {
     e.target.style.borderColor = '#ef4444';
     logActivity("⚠️ Invalid IP address format");
   } else {
-    e.target.style.borderColor = '#22314a';
+    e.target.style.borderColor = '#334155';
   }
 });
 
@@ -634,6 +744,28 @@ document.getElementById("networkRange").addEventListener('blur', (e) => {
     e.target.style.borderColor = '#ef4444';
     logActivity("⚠️ Invalid network range format (use CIDR notation)");
   } else {
-    e.target.style.borderColor = '#22314a';
+    e.target.style.borderColor = '#334155';
   }
 });
+
+// ===============================
+// Initialization and Startup
+// ===============================
+window.onload = () => {
+  logActivity("[INIT] Cisco Network Dashboard loaded successfully");
+  logActivity("[INFO] Ready to scan and manage Cisco devices");
+  logActivity("[TIP] Use Ctrl+Q for quick scan, Ctrl+T for topology validation");
+  
+  // Set default network range for Cisco sandbox
+  document.getElementById("networkRange").value = "10.10.20.0/24";
+  document.getElementById("newDeviceType").value = "cisco";
+  
+  // Add quick scan button
+  createQuickScanButton();
+  
+  // Load existing topology
+  loadTopology();
+  
+  // Optional: Start with a quick scan of known devices
+  // setTimeout(quickScanKnownDevices, 2000);
+};

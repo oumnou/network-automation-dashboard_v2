@@ -129,8 +129,8 @@
             <div class="form-group">
               <label class="form-label">Device Type</label>
               <select class="form-select" id="newDeviceType">
-                <option value="ovs">Open vSwitch (OVS)</option>
                 <option value="cisco">Cisco IOS</option>
+                <option value="ovs">Open vSwitch (OVS)</option>
                 <option value="linux">Linux Device</option>
               </select>
             </div>
@@ -150,7 +150,10 @@
         <div class="card-content">
           <div class="form-group">
             <label class="form-label">Network Range</label>
-            <input type="text" class="form-input" id="networkRange" placeholder="192.168.116.0/24" value="192.168.116.0/24">
+            <input type="text" class="form-input" id="networkRange" placeholder="10.10.20.0/24" value="10.10.20.0/24">
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+              Cisco Sandbox: 10.10.20.3, 10.10.20.4, 10.10.20.5, 10.10.20.10-13
+            </div>
           </div>
           <button class="btn" id="scanNetworkBtn">🔍 Scan for Switches</button>
           <div class="scan-results" id="scanResults" style="display: none;"></div>
@@ -167,6 +170,7 @@
           <div class="log-panel" id="activityLog">
             [INIT] Dashboard loaded successfully<br>
             [INFO] Ready to scan network and manage switches<br>
+            [TIP] Use Quick Scan for known Cisco IPs (10.10.20.3-13)<br>
           </div>
         </div>
       </div>

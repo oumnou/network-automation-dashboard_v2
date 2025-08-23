@@ -2,3 +2,8 @@
 [2025-08-18 16:11:09 UTC] [SCAN] range=192.168.1.0/24 engine=nmap found=0
 [2025-08-18 16:11:10 UTC] [SCAN] range=192.168.1.0/24 engine=nmap found=0
 [2025-08-18 16:11:12 UTC] [SCAN] range=192.168.1.0/24 engine=nmap found=0
+[2025-08-23 22:34:45 UTC] [SCAN] Scanning known Cisco devices only
+[2025-08-23 22:34:54 UTC] [SCAN] Scanning known Cisco devices only
+[2025-08-23 22:37:43 UTC] [SCAN] Known devices scan complete: 0/7 devices accessible
+[2025-08-23 22:37:53 UTC] [SCAN] Known devices scan complete: 0/7 devices accessible
+[2025-08-23 22:38:20 UTC] [SCAN] Scanning known Cisco devices only
