@@ -1,344 +1,226 @@
-# Cisco Network Automation Dashboard
+# Enhanced Cisco Network Scanner - Installation & Usage Guide
 
-A Flask-based Cisco network management dashboard for DevNet/Cisco Modeling Labs environments.
-Generated on 2025-08-18T15:45:05.266880Z
+## 🚀 Quick Start
 
-## Overview
+### 1. Install Dependencies
 
-This dashboard is designed to work with **real Cisco switches** in DevNet environments, including:
-- **Core Switches**: High-performance backbone switches (Catalyst 9000 series)
-- **Distribution Switches**: Aggregation layer switches (Catalyst 3850/9300 series)
-- **Access Switches**: End-user access switches (Catalyst 2960/9200 series)
+```bash
+# Install Python dependencies
+pip install nmap-python paramiko flask flask-cors ipaddress pyyaml
 
-The dashboard provides automated discovery, topology visualization, and configuration management for Cisco network infrastructures.
+# Install Nmap system package (required for advanced scanning)
+# Ubuntu/Debian:
+sudo apt update && sudo apt install nmap
 
-## Cisco DevNet Integration
+# CentOS/RHEL:
+sudo yum install nmap
 
-### Supported Platforms
-- **Cisco IOS/IOS-XE**: Catalyst switches, ISR routers
-- **Cisco Modeling Labs**: Virtual network topologies
-- **DevNet Sandbox**: Remote lab environments
-- **Physical Cisco Hardware**: Production networks
+# macOS:
+brew install nmap
 
-### Required Cisco Features
-- SSH access enabled (`ip ssh version 2`)
-- User accounts with appropriate privilege levels
-- SNMP (optional, for enhanced monitoring)
-- CDP/LLDP for neighbor discovery
-
-## Quick Start (Windows PowerShell)
-
-### 1. Environment Setup
-```powershell
-# Clone and navigate to project
-cd "/mnt/data/new-network-automation-dashboard"
-
-# Create virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set Flask application
-$env:FLASK_APP="app.py"
+# Windows: Download from https://nmap.org/download.html
 ```
 
-### 2. Cisco Device Configuration
+### 2. Update Your Files
 
-Before using the dashboard, ensure your Cisco devices have SSH enabled:
+Replace your existing files with the enhanced versions:
 
-```cisco
-! Enable SSH on Cisco devices
-configure terminal
-hostname YourSwitchName
-ip domain-name yourdomain.com
-crypto key generate rsa modulus 2048
-username admin privilege 15 secret YourPassword
-line vty 0 15
- transport input ssh
- login local
-ip ssh version 2
-exit
-```
+1. **Replace `services/net_scan.py`** with the enhanced scanner
+2. **Replace `routes/scan_routes.py`** with the updated routes
+3. **Replace `config.py`** with the enhanced configuration
+4. Keep all other files as they are (they'll work with the new scanner)
 
-### 3. Network Configuration
+### 3. Configure for Your Environment
 
-Update the network range in `config.py` to match your DevNet/lab environment:
+Edit `config.py` and update these key settings:
+
 ```python
-DEFAULT_SCAN_RANGE = "192.168.1.0/24"  # Update this to your network
+# Your CML network range
+DEFAULT_SCAN_RANGE = "192.168.116.0/24"  # Change to your lab range
+
+# Your device credentials
+DEFAULT_CISCO_USERNAME = "admin"          # Change to your username
+DEFAULT_CISCO_PASSWORD = "admin"          # Change to your password
+DEFAULT_ENABLE_PASSWORD = "admin"         # Change to your enable password
+
+# CML mode (keep as True for lab environment)
+CML_MODE = True
 ```
 
-Common DevNet ranges:
-- Modeling Labs: `192.168.1.0/24`, `10.0.0.0/24`
-- DevNet Sandbox: Provided in lab documentation
-- Always-On Sandbox: Check current IP assignments
+## 🔍 Usage Examples
 
-### 4. Start the Application
-```powershell
-python app.py
-# Open http://127.0.0.1:5000
+### Basic Network Scanning
+
+1. **Web Interface**: Use your existing dashboard - it will automatically use the enhanced scanner
+2. **API Calls**:
+
+```bash
+# Basic scan
+curl -X POST http://localhost:5000/api/scan/ \
+  -H "Content-Type: application/json" \
+  -d '{"network": "192.168.116.0/24"}'
+
+# Quick scan (faster)
+curl -X POST http://localhost:5000/api/scan/ \
+  -H "Content-Type: application/json" \
+  -d '{"network": "192.168.116.0/24", "quick_scan": true}'
+
+# Scan single device
+curl -X POST http://localhost:5000/api/scan/single \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "192.168.116.1", "username": "admin", "password": "admin"}'
 ```
 
-## Dashboard Features
+### Command Line Testing
 
-### 🌐 Network Discovery
-- **Automated Scanning**: Discovers Cisco devices via SSH (port 22)
-- **Device Fingerprinting**: Identifies Cisco IOS/IOS-XE devices
-- **Topology Detection**: Automatically determines switch roles based on configuration
+```bash
+# Test the scanner directly
+cd your-project-directory
+python services/net_scan.py 192.168.116.0/24
 
-### 📊 Visualization
-- **Hierarchical Topology**: Core → Distribution → Access layout
-- **Interactive Network Map**: Click switches for detailed information
-- **Real-time Status**: Live connection and health monitoring
+# Quick scan
+python services/net_scan.py --quick 192.168.116.0/24
 
-### 💾 Configuration Management
-- **Running Config Backup**: Automated `show running-config` exports
-- **Version Control**: Timestamped configuration snapshots
-- **Bulk Operations**: Mass configuration deployment
+# Single device scan
+python services/net_scan.py --single 192.168.116.1
 
-### 📈 Monitoring
-- **Health Metrics**: CPU, memory, temperature monitoring
-- **Interface Status**: Port utilization and error tracking
-- **Activity Logging**: Comprehensive audit trail
+# Export results
+python services/net_scan.py 192.168.116.0/24 --export json
+```
 
-## API Endpoints
+## 🎯 What's New and Enhanced
 
-### Network Scanning
-```http
-POST /api/scan/
-Content-Type: application/json
+### Advanced Cisco Detection
+
+The enhanced scanner now:
+
+1. **Uses Nmap for comprehensive port scanning** - detects more devices and services
+2. **Identifies Cisco devices more accurately** - recognizes IOSv, IOSvL2, IOL, and physical Cisco gear
+3. **Validates devices via SSH** - confirms device type and gathers detailed information
+4. **Tries multiple credential sets** - tests common Cisco lab credentials automatically
+5. **Provides detailed device classification** - distinguishes between core, distribution, and access devices
+
+### New API Endpoints
+
+Your dashboard now has these additional endpoints:
+
+- `POST /api/scan/single` - Detailed scan of single device
+- `POST /api/scan/validate` - Comprehensive Cisco device validation
+- `POST /api/scan/credentials/test` - Test multiple credentials against a device
+- `POST /api/scan/range/validate` - Validate network range before scanning
+- `GET /api/scan/config` - Get scanning configuration and capabilities
+
+### Enhanced Device Information
+
+Each discovered device now includes:
+
+```json
 {
-  "network": "192.168.1.0/24",
-  "ports": [22, 23, 80, 443]
+  "ip": "192.168.116.1",
+  "device_type": "cisco",
+  "bridge": "Cisco-Core-Router",
+  "open_ports": [22, 23, 80, 161],
+  "services": {
+    "22": {"service": "ssh", "product": "Cisco SSH", "version": "2.0"}
+  },
+  "cisco_indicators": ["SSH+Telnet combination", "SNMP management"],
+  "device_priority": 100,
+  "hostname": "R1-Core",
+  "model": "IOSv",
+  "ios_version": "15.9",
+  "role_hint": "core",
+  "scan_method": "nmap"
 }
 ```
 
-### Switch Management
-```http
-# List all switches
-GET /api/switch/
+## 🔧 Configuration Options
 
-# Add/Update switch
-POST /api/switch/
-{
-  "hostname": "core-sw-01",
-  "ip": "192.168.1.10",
-  "role": "core",
-  "device_type": "cisco"
-}
+### Network Ranges
 
-# Get switch details
-GET /api/switch/192.168.1.10
+Configure allowed scanning ranges in `config.py`:
 
-# Delete switch
-DELETE /api/switch/192.168.1.10
-```
-
-### Configuration Backup
-```http
-POST /api/backup/run
-{
-  "ip": "192.168.1.10",
-  "username": "admin",
-  "password": "password",
-  "enable_password": "enable_secret",
-  "device_type": "cisco"
-}
-```
-
-### Bulk Operations
-```http
-# Bulk import switches
-POST /api/switch/bulk
-{
-  "switches": [
-    {"hostname": "core-01", "ip": "192.168.1.10", "role": "core"},
-    {"hostname": "dist-01", "ip": "192.168.1.20", "role": "distribution"},
-    {"hostname": "access-01", "ip": "192.168.1.30", "role": "access"}
-  ]
-}
-
-# Export topology
-GET /api/switch/export
-```
-
-## DevNet Lab Examples
-
-### Cisco Modeling Labs Topology
-```yaml
-# Example CML topology structure
-topology:
-  core_switches:
-    - hostname: "CORE-SW-01"
-      ip: "192.168.1.10"
-      model: "Cat9000v"
-      
-  distribution_switches:
-    - hostname: "DIST-SW-01" 
-      ip: "192.168.1.20"
-      model: "Cat3850"
-      
-  access_switches:
-    - hostname: "ACCESS-SW-01"
-      ip: "192.168.1.30" 
-      model: "Cat2960"
-```
-
-### DevNet Sandbox Access
 ```python
-# Example sandbox credentials
-DEVNET_SANDBOX = {
-    "host": "sandbox-iosxe-latest-1.cisco.com",
-    "username": "developer", 
-    "password": "C1sco12345",
-    "port": 22
-}
+# Your lab networks
+ALLOWED_SCAN_RANGES = [
+    "192.168.116.0/24",  # Your CML range
+    "10.0.0.0/24",       # Management network
+    "172.16.0.0/16"      # Additional lab range
+]
 ```
 
-## Directory Structure
+### Credential Sets
 
-```
-new-network-automation-dashboard/
-├── data/
-│   ├── switches.json          # Switch inventory database
-│   ├── backups/              # Configuration backups
-│   │   └── <ip>_<timestamp>/ # Individual backup folders
-│   └── activity.log          # System activity log
-├── routes/
-│   ├── scan_routes.py        # Network discovery endpoints  
-│   ├── switch_routes.py      # Switch management endpoints
-│   └── backup_routes.py      # Configuration backup endpoints
-├── services/
-│   ├── net_scan.py          # Cisco device discovery
-│   ├── ssh_utils.py         # SSH connection utilities
-│   └── action_logger.py     # Activity logging
-├── static/
-│   ├── script.js            # Frontend JavaScript
-│   └── styles.css           # Dashboard styling
-├── templates/
-│   └── index.html           # Main dashboard HTML
-├── app.py                   # Flask application
-├── config.py               # Configuration settings
-└── requirements.txt        # Python dependencies
-```
+Add your specific credentials:
 
-## Cisco Authentication
-
-### Standard Authentication
 ```python
-# SSH credentials for Cisco devices
-credentials = {
-    "username": "admin",
-    "password": "password",
-    "enable_password": "enable_secret"  # For privileged mode
-}
+CISCO_CREDENTIAL_SETS = [
+    ("admin", "admin", "admin"),           # Default
+    ("cisco", "cisco", "cisco"),           # Alternative
+    ("your_user", "your_pass", "enable"),  # Your credentials
+]
 ```
 
-### TACACS+ Integration (Advanced)
+### Scan Performance
+
+Adjust for your environment:
+
 ```python
-# For enterprise environments
-tacacs_config = {
-    "tacacs_server": "192.168.1.100",
-    "tacacs_key": "shared_secret",
-    "fallback_local": True
-}
+SCAN_THREADS = 15           # Concurrent threads (reduce if network is slow)
+SCAN_TIMEOUT = 5           # Timeout per device (increase for slow devices)
+NMAP_HOST_BATCH_SIZE = 10  # Devices per Nmap batch (reduce for stability)
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-**SSH Connection Failed**
-```bash
-# Check SSH service on Cisco device
-show ip ssh
-show line vty 0 15
+1. **"Nmap not found"**
+   ```bash
+   # Install Nmap system package
+   sudo apt install nmap  # Ubuntu/Debian
+   sudo yum install nmap  # CentOS/RHEL
+   ```
 
-# Verify connectivity
-telnet <device_ip> 22
-ssh -v admin@<device_ip>
-```
+2. **Slow scanning**
+   - Reduce `SCAN_THREADS` in config.py
+   - Use quick_scan mode
+   - Scan smaller network ranges
 
-**Authentication Errors**
-```cisco
-! Enable SSH and create user
-username admin privilege 15 secret password
-line vty 0 15
- login local
- transport input ssh
-```
+3. **SSH authentication failures**
+   - Check credentials in `config.py`
+   - Verify SSH is enabled on devices
+   - Check if devices are using default credentials
 
-**Discovery Issues**
+4. **No devices found**
+   - Verify network range is correct
+   - Check if devices are powered on
+   - Ensure network connectivity from scanner
+
+### Debug Mode
+
+Enable detailed logging:
+
 ```python
-# Check network connectivity
-ping <device_ip>
-nmap -p 22,23,80,443 <network_range>
+# In config.py
+DEBUG_DEVICE_DETECTION = True
+VERBOSE_SCAN_LOGGING = True
+
+# Run with verbose output
+python services/net_scan.py --verbose 192.168.116.0/24
 ```
 
-**Configuration Backup Failures**
-```cisco
-! Ensure sufficient privilege level
-show privilege
-enable
-show running-config
-```
+## 🔒 Security Considerations
 
-### DevNet Resources
-- **DevNet Learning Labs**: https://developer.cisco.com/learning/
-- **Cisco Modeling Labs**: https://developer.cisco.com/docs/modeling-labs/
-- **Always-On Sandboxes**: https://devnetsandbox.cisco.com/
-- **API Documentation**: https://developer.cisco.com/docs/
+### Lab Environment (Current Setup)
+- ✅ Safe for CML/lab environments
+- ✅ Uses common lab credentials
+- ✅ Scans only private networks
 
-### Performance Optimization
+### Production Deployment
+Before using in production:
 
-**Large Network Scanning**
-```python
-# Optimize scan parameters in config.py
-SCAN_TIMEOUT = 2  # Seconds per device
-SCAN_THREADS = 10  # Concurrent scans
-MAX_DEVICES = 254  # Scan limit
-```
-
-**Backup Scheduling**
-```python
-# Schedule automated backups
-BACKUP_SCHEDULE = {
-    "daily": "02:00",
-    "retention_days": 30,
-    "compression": True
-}
-```
-
-## Security Considerations
-
-### Network Security
-- Use dedicated management VLANs
-- Implement SSH key-based authentication
-- Enable logging and monitoring
-- Regular credential rotation
-
-### Application Security  
-- Configure HTTPS in production
-- Implement user authentication
-- Secure API endpoints
-- Regular security updates
-
-## Contributing
-
-When working with Cisco devices:
-1. Test in DevNet sandbox first
-2. Follow Cisco configuration best practices
-3. Document device-specific behaviors
-4. Include proper error handling
-5. Update API documentation
-
-## License
-
-This project is designed for educational and development purposes with Cisco DevNet resources.
-
----
-
-**Ready for Cisco DevNet Integration!** 🚀
-
-The dashboard now prioritizes Cisco device discovery and management while maintaining compatibility with mixed environments.
+1. **Change default credentials**:
+   ```python
+   DEFAULT_CISCO_USERNAME = "your_prod_user"
+   DEFAULT_CISCO_PASSWORD = "secure_password"
+   ```
