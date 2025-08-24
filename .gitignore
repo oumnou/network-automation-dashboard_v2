@@ -1,6 +1,24 @@
-new-network-automation-dashboard_ch\routes\__pycache__
-new-network-automation-dashboard_ch\services\__pycache__
-new-network-automation-dashboard_ch\__pycache__
-new-network-automation-dashboard_ch\data
-new-network-automation-dashboard_ch\.venv
-new-network-automation-dashboard_ch\config.py
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore config file
+config.py
+
+
+# Ignore data directory
+new-network-automation-dashboard_ch/data/
+
+# Ignore sandbox demo
+sandbox_demo/
+
+# Ignore all __pycache__ folders inside project
+new-network-automation-dashboard_ch/**/__pycache__/
+
+# Ignore logs
+*.log
