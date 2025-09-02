@@ -23,6 +23,15 @@
         <div class="card-header">
           <h3 class="card-title">🏗️ Network Topology</h3>
           <div class="control-panel">
+            <!-- Add this before the Quick Scan button -->
+<div class="form-group" style="margin-bottom: 10px;">
+    <label class="form-label">Quick Scan Network</label>
+    <input type="text" class="form-input" id="quickScanRange" 
+           placeholder="Auto-detect or enter range" value="">
+    <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">
+        Leave empty to auto-detect, or enter: 192.168.1.0/24, 10.0.0.0/24, etc.
+    </div>
+</div>
             <button class="btn btn-success" id="quickScanBtn">⚡ Quick Scan</button>
             <button class="btn" id="scanBtn">🔍 Full Scan</button>
             <button class="btn btn-secondary" id="validateBtn">✅ Validate</button>

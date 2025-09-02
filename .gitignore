@@ -22,3 +22,5 @@ new-network-automation-dashboard_ch/**/__pycache__/
 
 # Ignore logs
 *.log
+*.pyc
+
